@@ -31,10 +31,15 @@
 
 ## Overview
 
-This document specifies a lightweight radio mode identification preamble for use in amateur
-and experimental software-defined radio systems. The preamble allows a receiver to identify
-the incoming signal mode — analog or digital — before committing to a demodulator, without
-relying on statistical signal classification methods such as machine learning.
+This document specifies **gr-ident**, an open standard for a lightweight radio mode
+identification preamble for use in amateur and experimental software-defined radio systems.
+The specification is published freely, may be implemented by anyone without licensing
+requirements, and is intended for open, interoperable use across receivers, transmitters,
+and software-defined radio tooling.
+
+The preamble allows a receiver to identify the incoming signal mode — analog or digital —
+before committing to a demodulator, without relying on statistical signal classification
+methods such as machine learning.
 
 The preamble is self-contained, protected by forward error correction, and is entirely
 transparent to any downstream LDPC decoder. It is designed to be decodable on modest
@@ -491,6 +496,6 @@ described in the gr-linux-crypto signing and verification documentation.
 
 ## License
 
-This specification is released into the public domain. No rights reserved.
-Implementers are free to use, modify, and distribute this specification without
-restriction. Attribution is appreciated but not required.
+gr-ident is an **open standard**. This specification is released into the public domain.
+No rights reserved. Implementers are free to use, modify, and distribute this specification
+without restriction. Attribution is appreciated but not required.
