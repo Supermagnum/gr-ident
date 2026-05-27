@@ -100,16 +100,33 @@ def _crop_waterfall(
     return [row[lo:hi] for row in frames], freqs[lo:hi]
 
 
+def _row_percentile(values: list[float], pct: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    if len(ordered) == 1:
+        return ordered[0]
+    rank = (len(ordered) - 1) * pct / 100.0
+    lo = int(math.floor(rank))
+    hi = min(len(ordered) - 1, lo + 1)
+    frac = rank - lo
+    return ordered[lo] * (1.0 - frac) + ordered[hi] * frac
+
+
 def _normalize_grid(grid: list[list[float]], floor_db: float, ceil_db: float) -> list[list[float]]:
+    """Map power (dB) to 0..1 after per-row noise-floor subtraction."""
+    span = max(ceil_db - floor_db, 1e-9)
     out: list[list[float]] = []
     for row in grid:
+        noise = _row_percentile(row, 20.0)
         norm_row: list[float] = []
         for value in row:
-            if value < floor_db:
-                value = floor_db
-            if value > ceil_db:
-                value = ceil_db
-            norm_row.append((value - floor_db) / max(ceil_db - floor_db, 1e-9))
+            rel = value - noise
+            if rel < 0.0:
+                rel = 0.0
+            elif rel > span:
+                rel = span
+            norm_row.append(rel / span)
         out.append(norm_row)
     return out
 
@@ -241,15 +258,18 @@ def _line_plot_rgb(
     width: int,
     height: int,
     rgb: tuple[int, int, int] = (80, 200, 255),
+    margin_frac: float = 0.12,
 ) -> bytes:
     if not values:
         values = [0.0]
     peak = max(values) or 1.0
+    margin = max(1, int(height * margin_frac))
+    plot_height = max(1, height - 2 * margin)
     pixels = bytearray(width * height * 3)
     for x in range(width):
         idx = int(x * (len(values) - 1) / max(width - 1, 1))
-        y = int((1.0 - values[idx] / peak) * (height - 1))
-        y = max(0, min(height - 1, y))
+        y = margin + int((1.0 - values[idx] / peak) * (plot_height - 1))
+        y = max(margin, min(margin + plot_height - 1, y))
         for yy in range(max(0, y - 1), min(height, y + 2)):
             off = (yy * width + x) * 3
             pixels[off : off + 3] = bytes(rgb)

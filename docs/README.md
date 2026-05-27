@@ -8,7 +8,7 @@ Generated test documentation for gr-ident modulation profiles and IQ captures.
 
 - [Modulation captures and waterfall plots](modulation-captures.md)
 - [Test results](test-results.md)
-- [Code chart](codechart.md) — function and test map for debugging
+- [Code chart](codechart.md)
 
 ## Tested modes
 

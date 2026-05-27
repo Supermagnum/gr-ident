@@ -8,13 +8,12 @@ cmake-build/
 .mesonpy/
 *.pyc
 __pycache__/
+.venv/
 
-# IQ test captures (large binary fixtures)
+# IQ test captures (binary; regenerate locally)
 test_iq/
 *.iq
 *.cf32
 *.fc32
 *.cs16
 *.sc16
-!python/tests/fixtures/
-!python/tests/fixtures/**/*

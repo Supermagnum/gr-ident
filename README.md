@@ -141,7 +141,7 @@ Used by **NFM 12.5 kHz + CTCSS** (mode 30).
 | CTCSS tone | 88.5 Hz | EIA/TIA-603 |
 | CTCSS deviation | 500 Hz | Typical repeater practice |
 | Preamble | Clean 4-FSK burst (no CTCSS on preamble) | gr-ident rule |
-| Tail | 100 ms CTCSS-only carrier after preamble | Simulates voice segment |
+| Payload | CTCSS-only carrier for remainder of 3 s body | Simulates voice segment |
 
 ### Profile: `nfm_125_dcs_4800`
 
@@ -154,7 +154,7 @@ Used by **NFM 12.5 kHz + DCS** (mode 40).
 | DCS shift | ±134 Hz | ETSI TS 103 236 |
 | Test code | 023 | Standard test codeword |
 | Preamble | Clean 4-FSK burst (no DCS on preamble) | gr-ident rule |
-| Tail | 100 ms DCS-only carrier after preamble | Simulates voice segment |
+| Payload | DCS-only carrier for remainder of 3 s body | Simulates voice segment |
 
 ### Profile: `c4fm_4800`
 
@@ -200,13 +200,20 @@ Used by **RTTY** (mode 159).
 Mode ID to profile mapping for assigned modes is implemented in
 `python/grident/modulation/registry.py`.
 
-The gr-ident preamble is always a clean 4-FSK data burst at the start of a
-transmission. For NFM modes with CTCSS or DCS, test vectors append a short
-squelch-tone tail after the preamble to represent the following voice segment;
-decoders must not apply CTCSS/DCS compensation to the preamble symbols themselves.
+The gr-ident preamble is always a clean data burst at the start of a
+transmission. For NFM modes with CTCSS or DCS, test vectors append a
+squelch-tone payload after the preamble for the remainder of the **3 second**
+modulated body; decoders must not apply CTCSS/DCS compensation to the preamble
+symbols themselves.
 
-All IQ test vectors insert **1 second of silence** immediately before the modulated
-body and **1 second of silence** after it (including any squelch-tone tail).
+All IQ test vectors use this layout:
+
+```
+[ 1 s silence ] [ 3 s modulated body ] [ 1 s silence ]
+```
+
+The modulated body begins with the sync + Golay preamble burst. The remainder
+is profile-specific payload (CTCSS/DCS tone, idle carrier, RTTY mark, and so on).
 
 ---
 

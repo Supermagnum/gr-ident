@@ -75,7 +75,7 @@ IqSamples + metadata dict
 | Path | Used by |
 |---|---|
 | `test_iq/vectors/common/mode_XXX.cf32` | Dev vectors, docs generator |
-| `python/tests/fixtures/common_modes/mode_XXX.cf32` | `unittest` regression (committed) |
+| `python/tests/fixtures/common_modes/mode_XXX.cf32` | `unittest` regression (generated locally, not in git) |
 
 ---
 

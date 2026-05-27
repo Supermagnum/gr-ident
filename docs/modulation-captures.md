@@ -2,22 +2,34 @@
 
 Each mode uses a real air-interface profile. Waterfall plots are zoomed to the modulated body (with guard-silence context) at **14 kHz** wide (+/-7 kHz). Captures include **1 s guard silence** before and after the body.
 
-All IQ files are **48 kHz** complex float32 (`.cf32`). Total duration is `num_samples / 48000`. Structure: **1 s lead silence + modulated body + 1 s trail silence**.
+All IQ files are **48 kHz** complex float32 (`.cf32`). Total duration is `num_samples / 48000`. Structure: **1 s lead silence + 3 s modulated body + 1 s trail silence**.
+
+## Plot artifacts
+
+The PNG plots in this document are generated offline from the IQ captures using a short-time Fourier transform (STFT) and a fixed dynamic-range colour map. They illustrate the air-interface profile and preamble placement; they are **not** calibrated measurement plots. You may see visual artifacts that are not present on the air interface:
+
+- **Band-edge streaks** — Waterfalls are cropped to +/-7 kHz. Hann-window STFT leakage can raise the outermost frequency bins during short, wideband bursts (for example the ~4 ms 4-FSK preamble). Per-row noise-floor subtraction reduces this, but faint edge tint can remain when a row contains a strong burst.
+- **Short-burst smearing** — The preamble is only a few milliseconds long. With a 2048-point FFT at 48 kHz, one STFT frame spans ~43 ms, so the preamble appears as a single vertical bar rather than resolved symbol transitions.
+- **Idle-carrier band** — Modes whose body is mostly an unmodulated carrier (NFM/C4FM/dPMR after the preamble) show a steady horizontal line at 0 Hz offset. That is expected payload fill, not a decode artifact.
+- **Vertical resampling** — Waterfall height is resampled to a fixed pixel count for documentation. Linear interpolation can slightly blend adjacent time rows at burst boundaries (lead silence to body, body to trail silence).
+- **Context vs zoom** — The zoomed waterfall uses finer time steps than the full-capture context plot; detail and tint can differ between the two views of the same capture.
+
+Regenerate plots locally with `PYTHONPATH=python python3 python/grident/generate_docs.py` after changing capture or plot settings.
 
 ## Capture duration summary
 
 | Mode ID | Name | Total | Lead silence | Body | Trail silence | Preamble only |
 |---:|---|---:|---:|---:|---:|---:|
-| 20 | NFM 12.5 kHz | 2.004 s | 1.000 s | 0.004 s | 1.000 s | 0.004 s |
-| 30 | NFM 12.5 kHz + CTCSS | 2.104 s | 1.000 s | 0.104 s | 1.000 s | 0.004 s |
-| 40 | NFM 12.5 kHz + DCS | 2.104 s | 1.000 s | 0.104 s | 1.000 s | 0.004 s |
-| 104 | C4FM / Fusion | 2.005 s | 1.000 s | 0.005 s | 1.000 s | 0.005 s |
-| 108 | dPMR | 2.005 s | 1.000 s | 0.005 s | 1.000 s | 0.005 s |
-| 110 | EchoLink | 2.004 s | 1.000 s | 0.004 s | 1.000 s | 0.004 s |
-| 158 | PSK31 | 3.280 s | 1.000 s | 1.280 s | 1.000 s | 1.280 s |
-| 159 | RTTY | 2.800 s | 1.000 s | 0.800 s | 1.000 s | 0.800 s |
+| 20 | NFM 12.5 kHz | 5.000 s | 1.000 s | 3.000 s | 1.000 s | 0.004 s |
+| 30 | NFM 12.5 kHz + CTCSS | 5.000 s | 1.000 s | 3.000 s | 1.000 s | 0.004 s |
+| 40 | NFM 12.5 kHz + DCS | 5.000 s | 1.000 s | 3.000 s | 1.000 s | 0.004 s |
+| 104 | C4FM / Fusion | 5.000 s | 1.000 s | 3.000 s | 1.000 s | 0.005 s |
+| 108 | dPMR | 5.000 s | 1.000 s | 3.000 s | 1.000 s | 0.005 s |
+| 110 | EchoLink | 5.000 s | 1.000 s | 3.000 s | 1.000 s | 0.004 s |
+| 158 | PSK31 | 5.000 s | 1.000 s | 3.000 s | 1.000 s | 1.280 s |
+| 159 | RTTY | 5.000 s | 1.000 s | 3.000 s | 1.000 s | 0.800 s |
 
-The **body** is the modulated segment (preamble burst, plus any squelch-tone tail for CTCSS/DCS profiles). **Preamble only** is the sync + Golay burst without the squelch tail.
+The **body** is the 3 s modulated segment (preamble burst plus profile-specific payload). **Preamble only** is the sync + Golay burst without the payload extension.
 
 ## Mode 20 — NFM 12.5 kHz
 
@@ -25,9 +37,9 @@ The **body** is the modulated segment (preamble burst, plus any squelch-tone tai
 - **Reference:** ETSI EN 300 113 (12.5 kHz channel); 4-FSK deviations per ETSI TS 102 490
 - **Modulation:** cpfsk4, 4800 baud/sym/s
 - **Digital flag:** False
-- **Total duration:** 2.004 s (96200 samples)
+- **Total duration:** 5.000 s (240000 samples)
 - **Lead silence:** 1.000 s (48000 samples)
-- **Modulated body:** 0.004 s (200 samples)
+- **Modulated body:** 3.000 s (144000 samples)
 - **Trail silence:** 1.000 s (48000 samples)
 - **Preamble burst only:** 0.004 s (200 samples)
 - **Codeword:** 0xcb4014
@@ -54,9 +66,9 @@ The **body** is the modulated segment (preamble burst, plus any squelch-tone tai
 - **Reference:** ETSI EN 300 113; EIA/TIA-603 CTCSS; 4-FSK per ETSI TS 102 490
 - **Modulation:** cpfsk4, 4800 baud/sym/s
 - **Digital flag:** False
-- **Total duration:** 2.104 s (101000 samples)
+- **Total duration:** 5.000 s (240000 samples)
 - **Lead silence:** 1.000 s (48000 samples)
-- **Modulated body:** 0.104 s (5000 samples)
+- **Modulated body:** 3.000 s (144000 samples)
 - **Trail silence:** 1.000 s (48000 samples)
 - **Preamble burst only:** 0.004 s (200 samples)
 - **Codeword:** 0x5de01e
@@ -83,9 +95,9 @@ The **body** is the modulated segment (preamble burst, plus any squelch-tone tai
 - **Reference:** ETSI EN 300 113; ETSI TS 103 236 DCS; 4-FSK per ETSI TS 102 490
 - **Modulation:** cpfsk4, 4800 baud/sym/s
 - **Digital flag:** False
-- **Total duration:** 2.104 s (101000 samples)
+- **Total duration:** 5.000 s (240000 samples)
 - **Lead silence:** 1.000 s (48000 samples)
-- **Modulated body:** 0.104 s (5000 samples)
+- **Modulated body:** 3.000 s (144000 samples)
 - **Trail silence:** 1.000 s (48000 samples)
 - **Preamble burst only:** 0.004 s (200 samples)
 - **Codeword:** 0x65a028
@@ -112,9 +124,9 @@ The **body** is the modulated segment (preamble burst, plus any squelch-tone tai
 - **Reference:** Yaesu System Fusion / C4FM amateur digital voice air interface
 - **Modulation:** cpfsk4, 4800 baud/sym/s
 - **Digital flag:** True
-- **Total duration:** 2.005 s (96240 samples)
+- **Total duration:** 5.000 s (240000 samples)
 - **Lead silence:** 1.000 s (48000 samples)
-- **Modulated body:** 0.005 s (240 samples)
+- **Modulated body:** 3.000 s (144000 samples)
 - **Trail silence:** 1.000 s (48000 samples)
 - **Preamble burst only:** 0.005 s (240 samples)
 - **Codeword:** 0x314868
@@ -141,9 +153,9 @@ The **body** is the modulated segment (preamble burst, plus any squelch-tone tai
 - **Reference:** ETSI TS 102 490-1 (dPMR air interface)
 - **Modulation:** cpfsk4, 4800 baud/sym/s
 - **Digital flag:** True
-- **Total duration:** 2.005 s (96240 samples)
+- **Total duration:** 5.000 s (240000 samples)
 - **Lead silence:** 1.000 s (48000 samples)
-- **Modulated body:** 0.005 s (240 samples)
+- **Modulated body:** 3.000 s (144000 samples)
 - **Trail silence:** 1.000 s (48000 samples)
 - **Preamble burst only:** 0.005 s (240 samples)
 - **Codeword:** 0x92f86c
@@ -170,9 +182,9 @@ The **body** is the modulated segment (preamble burst, plus any squelch-tone tai
 - **Reference:** ETSI EN 300 113 (12.5 kHz channel); 4-FSK deviations per ETSI TS 102 490
 - **Modulation:** cpfsk4, 4800 baud/sym/s
 - **Digital flag:** True
-- **Total duration:** 2.004 s (96200 samples)
+- **Total duration:** 5.000 s (240000 samples)
 - **Lead silence:** 1.000 s (48000 samples)
-- **Modulated body:** 0.004 s (200 samples)
+- **Modulated body:** 3.000 s (144000 samples)
 - **Trail silence:** 1.000 s (48000 samples)
 - **Preamble burst only:** 0.004 s (200 samples)
 - **Codeword:** 0xd5886e
@@ -199,9 +211,9 @@ The **body** is the modulated segment (preamble burst, plus any squelch-tone tai
 - **Reference:** PSK31 amateur digital mode (BPSK, 31.25 baud Varicode payload)
 - **Modulation:** bpsk, 31.25 baud/sym/s
 - **Digital flag:** True
-- **Total duration:** 3.280 s (157440 samples)
+- **Total duration:** 5.000 s (240000 samples)
 - **Lead silence:** 1.000 s (48000 samples)
-- **Modulated body:** 1.280 s (61440 samples)
+- **Modulated body:** 3.000 s (144000 samples)
 - **Trail silence:** 1.000 s (48000 samples)
 - **Preamble burst only:** 1.280 s (61440 samples)
 - **Codeword:** 0x3e289e
@@ -228,9 +240,9 @@ The **body** is the modulated segment (preamble burst, plus any squelch-tone tai
 - **Reference:** ITA2 radioteletype (50 baud, 170 Hz frequency shift)
 - **Modulation:** fsk2, 50 baud/sym/s
 - **Digital flag:** True
-- **Total duration:** 2.800 s (134400 samples)
+- **Total duration:** 5.000 s (240000 samples)
 - **Lead silence:** 1.000 s (48000 samples)
-- **Modulated body:** 0.800 s (38400 samples)
+- **Modulated body:** 3.000 s (144000 samples)
 - **Trail silence:** 1.000 s (48000 samples)
 - **Preamble burst only:** 0.800 s (38400 samples)
 - **Codeword:** 0xc1c89f

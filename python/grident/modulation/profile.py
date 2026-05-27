@@ -21,6 +21,7 @@ ModulationKind = Literal["cpfsk4", "bpsk", "fsk2"]
 
 DEFAULT_SAMPLE_RATE = fsk.DEFAULT_SAMPLE_RATE
 GUARD_SILENCE_SEC = 1.0
+MODULATED_BODY_SEC = 3.0
 
 
 @dataclass(frozen=True)
@@ -82,28 +83,47 @@ class ModulationProfile:
         count = num_samples if num_samples is not None else self._guard_silence_samples()
         return [0j] * count
 
+    def _body_sample_target(self) -> int:
+        return int(MODULATED_BODY_SEC * self.sample_rate)
+
+    def _extend_body(self, burst: IqSamples) -> tuple[list[complex], int]:
+        """Pad or trim the burst to MODULATED_BODY_SEC of modulated samples."""
+        target = self._body_sample_target()
+        if burst.size >= target:
+            return burst.data[:target], 0
+
+        extend = target - burst.size
+        phase = float(cmath.phase(burst.data[-1])) if burst.data else 0.0
+        out = list(burst.data)
+
+        if self.overlay_builder is not None:
+            overlay = self._overlay(extend)
+            for n in range(extend):
+                freq = overlay[n] if overlay else 0.0
+                phase += 2.0 * math.pi * freq / self.sample_rate
+                out.append(cmath.exp(1j * phase))
+            return out, extend
+
+        if self.kind == "fsk2":
+            mark = rtty.RTTY_MARK_HZ
+            for _ in range(extend):
+                phase += 2.0 * math.pi * mark / self.sample_rate
+                out.append(cmath.exp(1j * phase))
+            return out, extend
+
+        for _ in range(extend):
+            out.append(cmath.exp(1j * phase))
+        return out, extend
+
     def modulate_preamble(self, field: PreambleField) -> tuple[IqSamples, dict]:
         codeword = encode_preamble(field)
         preamble_bits = codeword_to_bits_msb_first(codeword)
         bits = list(self.sync_bits) + preamble_bits
         burst = self._modulate_bits(bits, apply_overlay=False)
-        tail_samples = 0
-        if self.overlay_builder is not None:
-            tail_samples = self.sample_rate // 10
-            overlay = self._overlay(tail_samples)
-            phase = float(cmath.phase(burst.data[-1])) if burst.data else 0.0
-            tail: list[complex] = []
-            for n in range(tail_samples):
-                freq = overlay[n] if overlay else 0.0
-                phase += 2.0 * math.pi * freq / self.sample_rate
-                tail.append(cmath.exp(1j * phase))
-            signal = IqSamples(burst.data + tail)
-        else:
-            signal = burst
+        body, payload_samples = self._extend_body(burst)
 
         lead = self._silence()
         trail = self._silence()
-        body = signal.data
         signal = IqSamples(lead + body + trail)
 
         meta = {
@@ -119,10 +139,12 @@ class ModulationProfile:
             "sync_bits": self.sync_len,
             "preamble_bits": 24,
             "guard_silence_sec": GUARD_SILENCE_SEC,
+            "modulated_body_sec": MODULATED_BODY_SEC,
             "lead_silence_samples": len(lead),
             "trail_silence_samples": len(trail),
             "modulation_start": len(lead),
             "preamble_samples": burst.size,
+            "payload_samples": payload_samples,
             "modulated_samples": len(body),
             "expected_valid": True,
             "codeword_hex": f"0x{codeword:06x}",
@@ -133,8 +155,6 @@ class ModulationProfile:
             meta["shift_hz"] = rtty.RTTY_MARK_HZ - rtty.RTTY_SPACE_HZ
             meta["mark_hz"] = rtty.RTTY_MARK_HZ
             meta["space_hz"] = rtty.RTTY_SPACE_HZ
-        if self.overlay_builder is not None:
-            meta["squelch_tail_samples"] = tail_samples
         meta["num_samples"] = signal.size
         meta["samples_per_symbol"] = self.samples_per_symbol
         return signal, meta
@@ -143,8 +163,6 @@ class ModulationProfile:
         self, signal: IqSamples
     ) -> tuple[PreambleField | None, int, bool, int, int, int] | None:
         body_len = self._burst_sample_len()
-        if self.overlay_builder is not None:
-            body_len += self.sample_rate // 10
         search_len = min(
             len(signal),
             self._guard_silence_samples() + body_len + self.samples_per_symbol,

@@ -220,7 +220,7 @@ def write_modulation_doc(rows: list[dict]) -> None:
         "(+/-7 kHz). Captures include **1 s guard silence** before and after the body.",
         "",
         "All IQ files are **48 kHz** complex float32 (`.cf32`). Total duration is "
-        "`num_samples / 48000`. Structure: **1 s lead silence + modulated body + 1 s trail silence**.",
+        "`num_samples / 48000`. Structure: **1 s lead silence + 3 s modulated body + 1 s trail silence**.",
         "",
         "## Capture duration summary",
         "",
@@ -237,9 +237,9 @@ def write_modulation_doc(rows: list[dict]) -> None:
     lines.extend(
         [
             "",
-            "The **body** is the modulated segment (preamble burst, plus any squelch-tone "
-            "tail for CTCSS/DCS profiles). **Preamble only** is the sync + Golay burst "
-            "without the squelch tail.",
+        "The **body** is the 3 s modulated segment (preamble burst plus "
+        "profile-specific payload). **Preamble only** is the sync + Golay burst "
+        "without the payload extension.",
             "",
         ]
     )
