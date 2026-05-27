@@ -182,7 +182,8 @@ Combine with the receive path in
 1. Pull IQ over ZMQ from a remote SDR host.
 2. Detect preamble and publish mode ID on PUB (port 5560).
 3. A separate process subscribes, retrieves keys via gr-linux-crypto when `encrypted` is true,
-   and starts the profile-specific demodulator.
+   and starts the profile-specific demodulator. See [Gateway integration](../../docs/gateway-integration.md)
+   for adapter design on EchoLink, AllStar, Mumble, and other VoIP gateways.
 
 ## Endpoint conventions
 

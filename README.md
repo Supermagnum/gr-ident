@@ -18,6 +18,7 @@
   - [Sync sequences](docs/sync-sequences.md)
   - [Experimental mode registry](docs/experimental-mode-registry.md)
   - [ZeroMQ protocol](docs/zeromq-protocol.md)
+  - [Gateway integration (VoIP + ZMQ + gr-linux-crypto)](docs/gateway-integration.md)
 - [Design Goals](#design-goals)
   - [Preamble Structure](#preamble-structure)
   - [Modulation Profiles](#modulation-profiles)
@@ -68,6 +69,7 @@ Generated test documentation, IQ capture details, waterfall plots, and regressio
 - [blocklib/grident/blocks/README.md](blocklib/grident/blocks/README.md) — GNU Radio 4.x block build
 - [TESTING.md](TESTING.md) — tester onboarding and smoke tests
 - [docs/zeromq-protocol.md](docs/zeromq-protocol.md) — LinHT and gr-ident ZeroMQ wire formats and mode examples
+- [docs/gateway-integration.md](docs/gateway-integration.md) — VoIP gateway adapters, ZeroMQ, gr-linux-crypto
 - [apps/flowgraphs/zmq-distributed-demo.md](apps/flowgraphs/zmq-distributed-demo.md) — ZeroMQ distributed edges
 
 Regenerate with:
@@ -477,14 +479,32 @@ These mode IDs identify internet voice-linking services. They apply when the tra
 carries linked voice — for example after RF demodulation at a repeater or gateway, or when
 routing voice through an IP bridge rather than a distinct over-the-air codec.
 
-| Mode ID | Hex | Description |
-|---|---|---|
-| 110 | 0x06E | EchoLink — node, conference, or repeater link |
-| 111 | 0x06F | IRLP — Internet Radio Linking Project |
-| 112 | 0x070 | AllStar Link — Asterisk / app_rpt |
-| 113 | 0x071 | Mumble — open-source VoIP (e.g. KA-Node) |
-| 114 | 0x072 | Wires-X — Yaesu internet linking (link node) |
-| 115 | 0x073 | D-STAR Reflector — DCS / REF / XRF |
+gr-ident **identifies** the link type on the RF preamble; it does **not** implement EchoLink,
+IRLP, AllStar, Mumble, Wires-X, or D-STAR reflector protocols. A separate **gateway adapter**
+bridges decoded mode IDs and audio/PTT to the VoIP stack. See
+[Gateway integration reference](docs/gateway-integration.md) for ZeroMQ wiring and
+[gr-linux-crypto](https://github.com/Supermagnum/gr-linux-crypto) hooks.
+
+| Mode ID | Hex | Description | gr-ident RF profile (typical) | Gateway software |
+|---:|---|---|---|---|
+| 110 | 0x06E | EchoLink — node, conference, or repeater link | `nfm_125_4800` (test vector in repo) | [SvxLink](https://github.com/sm0svx/svxlink) |
+| 111 | 0x06F | IRLP — Internet Radio Linking Project | Operator-defined (often NFM) | IRLP node |
+| 112 | 0x070 | AllStar Link — Asterisk / app_rpt | Operator-defined (often NFM) | [ASL3](https://github.com/allstarlink/asl3) |
+| 113 | 0x071 | Mumble — open-source VoIP (e.g. KA-Node) | Operator-defined | Mumble / [QRadioLink](https://qradiolink.org/) |
+| 114 | 0x072 | Wires-X — Yaesu internet linking (link node) | `c4fm_4800` if digital RF | Yaesu Wires-X / MMDVM bridges |
+| 115 | 0x073 | D-STAR Reflector — DCS / REF / XRF | D-STAR sync (`sync_dstar`) | [xlxd](https://github.com/n7tae/new-xlxd) / [urfd](https://github.com/n7tae/urfd) |
+
+**Integration buses (gr-ident side):**
+
+- **Receive:** subscribe to preamble JSON on `tcp://127.0.0.1:5560` (topic `grident`) after
+  Golay decode; route on `mode_id`; if `encrypted` is true, invoke gr-linux-crypto before
+  forwarding audio to the gateway ([ZeroMQ protocol](docs/zeromq-protocol.md)).
+- **Transmit:** publish LinHT PMT `SOT`/`EOT` on `ipc:///tmp/ptt_msg` or gr-ident multipart
+  PTT on `:5561`; GR `PreambleOnPtt` inserts the burst for the configured linking mode ID.
+
+There are no mature GNU Radio OOT modules that speak these VoIP protocols end-to-end.
+Documented patterns use **UDP/ALSA/USRP audio** between GNU Radio and SvxLink, AllStar, or
+Mumble, with gr-ident handling RF identification only.
 
 #### Voice — Open Codec
 

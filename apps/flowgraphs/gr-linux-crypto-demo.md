@@ -92,5 +92,7 @@ if result.metadata_present and result.metadata:
 ## Related documentation
 
 - [Security Integration](../README.md#security-integration--gr-linux-crypto)
+- [Gateway integration (VoIP adapters, ZMQ, gr-linux-crypto)](../docs/gateway-integration.md)
 - [Optional secondary metadata](../README.md#optional-secondary-metadata-field)
 - [Sync sequences](../docs/sync-sequences.md)
+- [ZeroMQ protocol](../docs/zeromq-protocol.md)

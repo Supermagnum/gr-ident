@@ -564,7 +564,7 @@ send_tx_control("tcp://127.0.0.1:5561", TxControlState.OFF, profile="grident")
 |---|---|---|---|
 | PTT / TX control | Single-part PMT `SOT`/`EOT`, no topic | Multipart `[grident.tx, body]` or LinHT PMT via auto-parser | **Yes** (`profile=linht`) |
 | RX / TX baseband IQ | PUB/SUB, `int32` interleaved, 8192 B/msg | PUSH/PULL, `complex<float>` binary | **No** (adapter required) |
-| Decoded metadata to GUI | PMT pairs on `fg_aux_data_out` | JSON PUB on TCP 5560 | **No** (different schema and transport) |
+| Decoded metadata to GUI | PMT pairs on `fg_aux_data_out` | JSON PUB on TCP 5560 | **No** (different schema and transport); use [gateway adapter](gateway-integration.md) |
 | SMS / encoder triggers | Compound PMT on `fg_aux_data_in` | Not implemented | **No** |
 
 ---
@@ -589,5 +589,6 @@ send_tx_control("tcp://127.0.0.1:5561", TxControlState.OFF, profile="grident")
 |---|---|
 | [`apps/flowgraphs/ptt_preamble.gr.yaml`](../apps/flowgraphs/ptt_preamble.gr.yaml) | Reference flowgraph: LinHT profile PTT -> `PreambleOnPtt` |
 | [`apps/flowgraphs/zmq-distributed-demo.md`](../apps/flowgraphs/zmq-distributed-demo.md) | Operational wiring guide |
+| [`docs/gateway-integration.md`](gateway-integration.md) | VoIP gateway adapters, ZMQ, gr-linux-crypto |
 | [`TESTING.md`](../TESTING.md) | PTT/ZMQ smoke test prerequisites |
 | [`blocklib/grident/blocks/README.md`](../blocklib/grident/blocks/README.md) | Block inventory |
