@@ -227,6 +227,21 @@ and frequency band. Users are responsible for compliance with applicable regulat
 | 108 | 0x06C | dPMR — Digital Private Mobile Radio |
 | 109 | 0x06D | TETRA — Terrestrial Trunked Radio |
 
+#### Voice Linking / VoIP Gateways
+
+These mode IDs identify internet voice-linking services. They apply when the transmission
+carries linked voice — for example after RF demodulation at a repeater or gateway, or when
+routing voice through an IP bridge rather than a distinct over-the-air codec.
+
+| Mode ID | Hex | Description |
+|---|---|---|
+| 110 | 0x06E | EchoLink — node, conference, or repeater link |
+| 111 | 0x06F | IRLP — Internet Radio Linking Project |
+| 112 | 0x070 | AllStar Link — Asterisk / app_rpt |
+| 113 | 0x071 | Mumble — open-source VoIP (e.g. KA-Node) |
+| 114 | 0x072 | Wires-X — Yaesu internet linking (link node) |
+| 115 | 0x073 | D-STAR Reflector — DCS / REF / XRF |
+
 #### Voice — Open Codec
 
 | Mode ID | Hex | Description |
@@ -242,6 +257,10 @@ and frequency band. Users are responsible for compliance with applicable regulat
 
 #### Data / Packet
 
+Slot-synchronized weak-signal modes (FT8, FT4, JS8Call, and similar) are intentionally
+omitted. Their fixed transmit windows leave no room for a gr-ident preamble without
+breaking protocol timing.
+
 | Mode ID | Hex | Description |
 |---|---|---|
 | 150 | 0x096 | AX.25 — Amateur packet radio |
@@ -249,9 +268,6 @@ and frequency band. Users are responsible for compliance with applicable regulat
 | 152 | 0x098 | VARA HF |
 | 153 | 0x099 | VARA FM |
 | 154 | 0x09A | Winlink |
-| 155 | 0x09B | JS8Call |
-| 156 | 0x09C | FT8 |
-| 157 | 0x09D | FT4 |
 | 158 | 0x09E | PSK31 |
 | 159 | 0x09F | RTTY — Radioteletype |
 
@@ -261,15 +277,6 @@ and frequency band. Users are responsible for compliance with applicable regulat
 |---|---|---|
 | 180 | 0x0B4 | OFDM — Generic OFDM (parameters in metadata) |
 | 181 | 0x0B5 | COFDM — Coded OFDM |
-
-#### Legacy / Special
-
-| Mode ID | Hex | Description |
-|---|---|---|
-| 200 | 0x0C8 | POCSAG — Paging |
-| 201 | 0x0C9 | FLEX — Paging |
-| 202 | 0x0CA | EAS — Emergency Alert System |
-| 203 | 0x0CB | SAME — Specific Area Message Encoding |
 
 ---
 
@@ -303,7 +310,6 @@ and frequency band. Users are responsible for compliance with applicable regulat
 | 231 | 0x0E7 | EasyPal — HF digital image (DRM-based) |
 | 232 | 0x0E8 | FSSTV — Fast Scan ATV (narrowband digital) |
 | 233 | 0x0E9 | FAX — HF radiofax / weatherfax |
-| 234 | 0x0EA | WEFAX — Weather fax (satellite/HF) |
 
 #### ATV — Amateur Television
 
@@ -321,16 +327,10 @@ and frequency band. Users are responsible for compliance with applicable regulat
 ### Satellite Modes
 *(Bit 11 = 1)*
 
-#### Satellite Telemetry and Beacon
-
-| Mode ID | Hex | Description |
-|---|---|---|
-| 250 | 0x0FA | CW Beacon — Satellite Morse identifier |
-| 251 | 0x0FB | FSK Telemetry — Generic satellite telemetry |
-| 252 | 0x0FC | BPSK 1200 — CubeSat standard (AX.25) |
-| 253 | 0x0FD | BPSK 9600 — Higher rate satellite downlink |
-| 254 | 0x0FE | GMSK 9600 — GMSK satellite downlink |
-| 255 | 0x0FF | GMSK 19200 — High rate GMSK downlink |
+Modes in this section cover amateur satellite **uplink** use — signals a station transmits
+through a transponder. Receive-only downlinks (telemetry beacons, weather imaging,
+navigation, ADS-B, and similar) are intentionally omitted; they cannot be influenced by
+the transmitting station and are out of scope for gr-ident.
 
 #### Satellite Voice and Data
 
@@ -339,31 +339,8 @@ and frequency band. Users are responsible for compliance with applicable regulat
 | 260 | 0x104 | Linear transponder — SSB/CW uplink/downlink |
 | 261 | 0x105 | FM Satellite — Standard FM voice repeater |
 | 262 | 0x106 | FM Satellite + CTCSS — FM with access tone |
-| 263 | 0x107 | FUNcube — BPSK 1200 science telemetry |
 | 264 | 0x108 | Es'hail-2 / QO-100 — NB transponder SSB |
 | 265 | 0x109 | Es'hail-2 / QO-100 — WB transponder DATV |
-
-#### Weather Satellite
-
-| Mode ID | Hex | Description |
-|---|---|---|
-| 270 | 0x10E | NOAA APT — Automatic Picture Transmission |
-| 271 | 0x10F | NOAA HRPT — High Resolution Picture Transmission |
-| 272 | 0x110 | METEOR LRPT — Low Rate Picture Transmission |
-| 273 | 0x111 | GOES LRIT — Low Rate Information Transmission |
-| 274 | 0x112 | GOES HRIT — High Rate Information Transmission |
-| 275 | 0x113 | Meteosat LRIT |
-| 276 | 0x114 | DSB — Direct Sounder Broadcast |
-
-#### Navigation Satellite
-
-| Mode ID | Hex | Description |
-|---|---|---|
-| 280 | 0x118 | GPS L1 C/A — Coarse acquisition |
-| 281 | 0x119 | GPS L2C |
-| 282 | 0x11A | GLONASS L1 |
-| 283 | 0x11B | Galileo E1 |
-| 284 | 0x11C | ADS-B — Automatic Dependent Surveillance Broadcast |
 
 ---
 
