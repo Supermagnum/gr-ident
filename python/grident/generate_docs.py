@@ -69,6 +69,21 @@ def run_tests() -> tuple[int, str]:
     return proc.returncode, output
 
 
+def run_gr4_tests() -> tuple[int, str]:
+    build = ROOT / "build-gr4"
+    if not (build / "CTestTestfile.cmake").exists():
+        return 0, "GR4 ctest skipped (configure build-gr4 first)."
+    proc = subprocess.run(
+        ["ctest", "--test-dir", str(build), "--output-on-failure"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    return proc.returncode, output
+
+
 def decode_results(iq_dir: Path) -> list[dict]:
     rows: list[dict] = []
     for mode in COMMON_MODES:
@@ -165,19 +180,32 @@ def render_mode_images(iq_dir: Path, rows: list[dict]) -> None:
         }
 
 
-def write_test_results(exit_code: int, test_output: str, rows: list[dict]) -> None:
-    passed = exit_code == 0
+def write_test_results(
+    python_exit: int,
+    python_output: str,
+    gr4_exit: int,
+    gr4_output: str,
+    rows: list[dict],
+) -> None:
+    passed = python_exit == 0 and gr4_exit == 0
     lines = [
         "# Test Results",
         "",
         f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
         "",
-        f"**Overall:** {'PASS' if passed else 'FAIL'} (exit code {exit_code})",
+        f"**Overall:** {'PASS' if passed else 'FAIL'} "
+        f"(python exit {python_exit}, GR4 ctest exit {gr4_exit})",
         "",
-        "## Unit Test Log",
+        "## Python unit tests",
         "",
         "```text",
-        test_output.rstrip(),
+        python_output.rstrip(),
+        "```",
+        "",
+        "## GR4 smoke tests (ctest)",
+        "",
+        "```text",
+        gr4_output.rstrip(),
         "```",
         "",
         "## Per-Mode IQ Roundtrip",
@@ -300,8 +328,11 @@ Generated test documentation for gr-ident modulation profiles and IQ captures.
 ## Contents
 
 - [Modulation captures and waterfall plots](modulation-captures.md)
+- [ZeroMQ protocol (LinHT and gr-ident)](zeromq-protocol.md)
 - [Test results](test-results.md)
 - [Code chart](codechart.md)
+- [Sync sequences (normative)](sync-sequences.md)
+- [Experimental mode registry](experimental-mode-registry.md)
 
 ## Tested modes
 
@@ -349,7 +380,23 @@ def main() -> int:
         action="store_true",
         help="Regenerate IQ files only",
     )
+    parser.add_argument(
+        "--test-results-only",
+        action="store_true",
+        help="Run tests and refresh docs/test-results.md only (no IQ or plots)",
+    )
     args = parser.parse_args()
+
+    if args.test_results_only:
+        print("Running Python unit tests...")
+        python_exit, python_output = run_tests()
+        print("Running GR4 ctest...")
+        gr4_exit, gr4_output = run_gr4_tests()
+        rows = decode_results(FIXTURES)
+        DOCS.mkdir(parents=True, exist_ok=True)
+        write_test_results(python_exit, python_output, gr4_exit, gr4_output, rows)
+        print(f"Wrote {DOCS / 'test-results.md'}")
+        return 0 if python_exit == 0 and gr4_exit == 0 else 1
 
     print("Regenerating IQ captures...")
     manifest = regenerate_iq([TEST_IQ, FIXTURES])
@@ -366,19 +413,23 @@ def main() -> int:
     print("Rendering plots (14 kHz waterfall)...")
     render_mode_images(TEST_IQ, rows)
 
-    exit_code = 0
-    test_output = "Tests skipped."
+    python_exit = 0
+    python_output = "Tests skipped."
+    gr4_exit = 0
+    gr4_output = "GR4 ctest skipped."
     if not args.skip_tests:
-        print("Running unit tests...")
-        exit_code, test_output = run_tests()
+        print("Running Python unit tests...")
+        python_exit, python_output = run_tests()
+        print("Running GR4 ctest...")
+        gr4_exit, gr4_output = run_gr4_tests()
 
     DOCS.mkdir(parents=True, exist_ok=True)
-    write_test_results(exit_code, test_output, rows)
+    write_test_results(python_exit, python_output, gr4_exit, gr4_output, rows)
     write_modulation_doc(rows)
-    write_index(rows, exit_code == 0)
+    write_index(rows, python_exit == 0 and gr4_exit == 0)
 
     print(f"Documentation written to {DOCS}/")
-    return exit_code
+    return 0 if python_exit == 0 and gr4_exit == 0 else 1
 
 
 if __name__ == "__main__":
