@@ -1,0 +1,44 @@
+[
+  {
+    "mode_id": 20,
+    "name": "NFM 12.5 kHz",
+    "digital": false,
+    "iq": "python/tests/fixtures/common_modes/mode_020.cf32",
+    "meta": "python/tests/fixtures/common_modes/mode_020.json"
+  },
+  {
+    "mode_id": 30,
+    "name": "NFM 12.5 kHz + CTCSS",
+    "digital": false,
+    "iq": "python/tests/fixtures/common_modes/mode_030.cf32",
+    "meta": "python/tests/fixtures/common_modes/mode_030.json"
+  },
+  {
+    "mode_id": 40,
+    "name": "NFM 12.5 kHz + DCS",
+    "digital": false,
+    "iq": "python/tests/fixtures/common_modes/mode_040.cf32",
+    "meta": "python/tests/fixtures/common_modes/mode_040.json"
+  },
+  {
+    "mode_id": 104,
+    "name": "C4FM / Fusion",
+    "digital": true,
+    "iq": "python/tests/fixtures/common_modes/mode_104.cf32",
+    "meta": "python/tests/fixtures/common_modes/mode_104.json"
+  },
+  {
+    "mode_id": 108,
+    "name": "dPMR",
+    "digital": true,
+    "iq": "python/tests/fixtures/common_modes/mode_108.cf32",
+    "meta": "python/tests/fixtures/common_modes/mode_108.json"
+  },
+  {
+    "mode_id": 110,
+    "name": "EchoLink",
+    "digital": true,
+    "iq": "python/tests/fixtures/common_modes/mode_110.cf32",
+    "meta": "python/tests/fixtures/common_modes/mode_110.json"
+  }
+]

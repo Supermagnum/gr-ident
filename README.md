@@ -10,8 +10,10 @@
 ## Table of Contents
 
 - [Overview](#overview)
+- [Documentation](#documentation)
 - [Design Goals](#design-goals)
-- [Preamble Structure](#preamble-structure)
+  - [Preamble Structure](#preamble-structure)
+  - [Modulation Profiles](#modulation-profiles)
 - [Golay(24,12) Protection](#golay2412-protection)
 - [12-Bit Field Layout](#12-bit-field-layout)
 - [Mode ID Table](#mode-id-table)
@@ -47,6 +49,23 @@ CPU hardware with no GPU requirement.
 
 ---
 
+## Documentation
+
+Generated test documentation, IQ capture details, waterfall plots, and regression results:
+
+- [docs/README.md](docs/README.md) — documentation index and plot parameters
+- [docs/modulation-captures.md](docs/modulation-captures.md) — per-mode air interfaces, capture durations, and spectrograms
+- [docs/test-results.md](docs/test-results.md) — unit test log and IQ roundtrip matrix
+- [docs/codechart.md](docs/codechart.md) — code and test function map (debug reference)
+
+Regenerate with:
+
+```bash
+PYTHONPATH=python python3 python/grident/generate_docs.py
+```
+
+---
+
 ## Design Goals
 
 - Identify the incoming signal mode before demodulation begins
@@ -78,8 +97,112 @@ modulation in use. The downstream decoder is started only after the preamble has
 fully consumed and validated.
 
 A known synchronization sequence (correlatable without carrier lock or symbol timing
-recovery) should precede the preamble to allow detection at negative SNR. The design
-of this sync sequence is modulation-specific and outside the scope of this document.
+recovery) must precede the preamble to allow detection at negative SNR. Sync sequences
+and physical layer parameters are **modulation-specific** and defined in
+[Modulation Profiles](#modulation-profiles).
+
+---
+
+## Modulation Profiles
+
+Each mode uses a defined air interface for transmitting the sync sequence and 24-bit
+Golay-protected preamble. IQ test vectors and conforming implementations must use the
+profile assigned to that mode ID.
+
+Common physical layer parameters for narrowband digital profiles:
+
+| Parameter | Value | Reference |
+|---|---|---|
+| Symbol rate | 4800 sym/s | ETSI TS 102 490, Yaesu C4FM |
+| 4-FSK deviations | ±648 Hz, ±1944 Hz | ETSI TS 102 490-1 |
+| Sample rate (test vectors) | 48000 Hz | 10 samples/symbol |
+
+### Profile: `nfm_125_4800`
+
+Used by **NFM 12.5 kHz** (mode 20) and **EchoLink** (mode 110, FM gateway path).
+
+| Parameter | Value | Reference |
+|---|---|---|
+| Channel | 12.5 kHz NFM | ETSI EN 300 113 |
+| Data burst | 4800 sym/s CPFSK 4-FSK | ETSI TS 102 490 deviations |
+| Sync | 16-bit sequence (see implementation) | gr-ident assigned |
+
+### Profile: `nfm_125_ctcss_4800`
+
+Used by **NFM 12.5 kHz + CTCSS** (mode 30).
+
+| Parameter | Value | Reference |
+|---|---|---|
+| Base | `nfm_125_4800` | |
+| CTCSS tone | 88.5 Hz | EIA/TIA-603 |
+| CTCSS deviation | 500 Hz | Typical repeater practice |
+| Preamble | Clean 4-FSK burst (no CTCSS on preamble) | gr-ident rule |
+| Tail | 100 ms CTCSS-only carrier after preamble | Simulates voice segment |
+
+### Profile: `nfm_125_dcs_4800`
+
+Used by **NFM 12.5 kHz + DCS** (mode 40).
+
+| Parameter | Value | Reference |
+|---|---|---|
+| Base | `nfm_125_4800` | |
+| DCS rate | 134.4 bit/s | ETSI TS 103 236 |
+| DCS shift | ±134 Hz | ETSI TS 103 236 |
+| Test code | 023 | Standard test codeword |
+| Preamble | Clean 4-FSK burst (no DCS on preamble) | gr-ident rule |
+| Tail | 100 ms DCS-only carrier after preamble | Simulates voice segment |
+
+### Profile: `c4fm_4800`
+
+Used by **C4FM / Fusion** (mode 104).
+
+| Parameter | Value | Reference |
+|---|---|---|
+| Modulation | C4FM 4-FSK | Yaesu System Fusion |
+| Symbol rate | 4800 sym/s | |
+| Sync | 24-bit sequence | gr-ident assigned (Fusion-style) |
+
+### Profile: `dpmr_4800`
+
+Used by **dPMR** (mode 108).
+
+| Parameter | Value | Reference |
+|---|---|---|
+| Modulation | 4-FSK | ETSI TS 102 490-1 |
+| Symbol rate | 4800 sym/s | |
+| Sync | 24-bit sequence | gr-ident assigned (dPMR-style) |
+
+### Profile: `psk31_3125`
+
+Used by **PSK31** (mode 158).
+
+| Parameter | Value | Reference |
+|---|---|---|
+| Modulation | BPSK | PSK31 amateur digital mode |
+| Symbol rate | 31.25 baud | PSK31 standard |
+| Sync | 16-bit sequence | gr-ident assigned |
+
+### Profile: `rtty_50`
+
+Used by **RTTY** (mode 159).
+
+| Parameter | Value | Reference |
+|---|---|---|
+| Modulation | 2-FSK | ITA2 radioteletype |
+| Symbol rate | 50 baud | Common amateur RTTY rate |
+| Frequency shift | 170 Hz (mark +85 Hz, space -85 Hz) | ITA2 audio shift |
+| Sync | 16-bit sequence | gr-ident assigned |
+
+Mode ID to profile mapping for assigned modes is implemented in
+`python/grident/modulation/registry.py`.
+
+The gr-ident preamble is always a clean 4-FSK data burst at the start of a
+transmission. For NFM modes with CTCSS or DCS, test vectors append a short
+squelch-tone tail after the preamble to represent the following voice segment;
+decoders must not apply CTCSS/DCS compensation to the preamble symbols themselves.
+
+All IQ test vectors insert **1 second of silence** immediately before the modulated
+body and **1 second of silence** after it (including any squelch-tone tail).
 
 ---
 

@@ -1,0 +1,29 @@
+{
+  "sample_rate": 48000,
+  "center_freq": 0,
+  "profile": "c4fm_4800",
+  "profile_reference": "Yaesu System Fusion / C4FM amateur digital voice air interface",
+  "modulation": "cpfsk4",
+  "symbol_rate": 4800,
+  "mode_id": 104,
+  "digital": true,
+  "encrypted": false,
+  "sync_bits": 24,
+  "preamble_bits": 24,
+  "guard_silence_sec": 1.0,
+  "lead_silence_samples": 48000,
+  "trail_silence_samples": 48000,
+  "modulation_start": 48000,
+  "preamble_samples": 240,
+  "modulated_samples": 240,
+  "expected_valid": true,
+  "codeword_hex": "0x314868",
+  "deviations_hz": [
+    648.0,
+    1944.0
+  ],
+  "num_samples": 96240,
+  "samples_per_symbol": 10,
+  "name": "C4FM / Fusion",
+  "slug": "mode_104"
+}

@@ -1,0 +1,30 @@
+{
+  "sample_rate": 48000,
+  "center_freq": 0,
+  "profile": "nfm_125_dcs_4800",
+  "profile_reference": "ETSI EN 300 113; ETSI TS 103 236 DCS; 4-FSK per ETSI TS 102 490",
+  "modulation": "cpfsk4",
+  "symbol_rate": 4800,
+  "mode_id": 40,
+  "digital": false,
+  "encrypted": false,
+  "sync_bits": 16,
+  "preamble_bits": 24,
+  "guard_silence_sec": 1.0,
+  "lead_silence_samples": 48000,
+  "trail_silence_samples": 48000,
+  "modulation_start": 48000,
+  "preamble_samples": 200,
+  "modulated_samples": 5000,
+  "expected_valid": true,
+  "codeword_hex": "0x65a028",
+  "deviations_hz": [
+    648.0,
+    1944.0
+  ],
+  "squelch_tail_samples": 4800,
+  "num_samples": 101000,
+  "samples_per_symbol": 10,
+  "name": "NFM 12.5 kHz + DCS",
+  "slug": "mode_040"
+}

@@ -1,0 +1,2 @@
+option('gr4', type: 'boolean', value: false,
+       description: 'Build GNU Radio 4.x blocks (requires GR 4.x development files)')

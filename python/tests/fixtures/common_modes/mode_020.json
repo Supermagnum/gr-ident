@@ -1,0 +1,29 @@
+{
+  "sample_rate": 48000,
+  "center_freq": 0,
+  "profile": "nfm_125_4800",
+  "profile_reference": "ETSI EN 300 113 (12.5 kHz channel); 4-FSK deviations per ETSI TS 102 490",
+  "modulation": "cpfsk4",
+  "symbol_rate": 4800,
+  "mode_id": 20,
+  "digital": false,
+  "encrypted": false,
+  "sync_bits": 16,
+  "preamble_bits": 24,
+  "guard_silence_sec": 1.0,
+  "lead_silence_samples": 48000,
+  "trail_silence_samples": 48000,
+  "modulation_start": 48000,
+  "preamble_samples": 200,
+  "modulated_samples": 200,
+  "expected_valid": true,
+  "codeword_hex": "0xcb4014",
+  "deviations_hz": [
+    648.0,
+    1944.0
+  ],
+  "num_samples": 96200,
+  "samples_per_symbol": 10,
+  "name": "NFM 12.5 kHz",
+  "slug": "mode_020"
+}

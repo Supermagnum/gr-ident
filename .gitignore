@@ -1,0 +1,20 @@
+# Local implementation planning (not part of the published specification)
+IMPLEMENTATION_PLAN.md
+
+# Build artifacts
+build/
+build-gr4/
+cmake-build/
+.mesonpy/
+*.pyc
+__pycache__/
+
+# IQ test captures (large binary fixtures)
+test_iq/
+*.iq
+*.cf32
+*.fc32
+*.cs16
+*.sc16
+!python/tests/fixtures/
+!python/tests/fixtures/**/*
