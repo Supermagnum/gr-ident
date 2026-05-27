@@ -1,0 +1,19 @@
+{
+  "registry_version": 1,
+  "description": "Public experimental mode ID assignments for gr-ident mode IDs 300-498.",
+  "range": {
+    "start": 300,
+    "end": 498
+  },
+  "assignments": [
+    {
+      "mode_id": 300,
+      "hex": "0x12C",
+      "holder": "Supermagnum",
+      "name": "Sleipnir",
+      "profile": null,
+      "contact": "https://github.com/Supermagnum/gr-sleipnir",
+      "notes": "Experimental GNU Radio digital voice mode for NFM channel spacing. Air interface: 8 parallel QPSK carriers, 900 baud per carrier (7200 sym/s total), 1300 Hz carrier spacing, ~1000-1200 Hz bandwidth per carrier with pulse shaping."
+    }
+  ]
+}

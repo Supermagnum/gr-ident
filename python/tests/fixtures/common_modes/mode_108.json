@@ -10,6 +10,7 @@
   "encrypted": false,
   "sync_bits": 24,
   "preamble_bits": 24,
+  "metadata_present": false,
   "guard_silence_sec": 1.0,
   "modulated_body_sec": 3.0,
   "lead_silence_samples": 48000,

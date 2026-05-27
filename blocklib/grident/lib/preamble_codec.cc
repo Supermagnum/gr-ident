@@ -15,7 +15,7 @@ preamble_decode_status decode_preamble(uint32_t codeword_24)
     if (!status.golay.valid) {
         return status;
     }
-    status.field = unpack_preamble_field(status.golay.data);
+    status.field = unpack_preamble_field(status.golay.data, false);
     return status;
 }
 

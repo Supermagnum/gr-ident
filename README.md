@@ -15,6 +15,9 @@
   - [Test results](docs/test-results.md)
   - [Modulation captures](docs/modulation-captures.md)
   - [Code chart](docs/codechart.md)
+  - [Sync sequences](docs/sync-sequences.md)
+  - [Experimental mode registry](docs/experimental-mode-registry.md)
+  - [ZeroMQ protocol](docs/zeromq-protocol.md)
 - [Design Goals](#design-goals)
   - [Preamble Structure](#preamble-structure)
   - [Modulation Profiles](#modulation-profiles)
@@ -30,6 +33,7 @@
 - [Receiver Behavior](#receiver-behavior)
 - [Interaction with LDPC](#interaction-with-ldpc)
 - [Security Integration — gr-linux-crypto](#security-integration--gr-linux-crypto)
+- [GNU Radio 4.x OOT module](#gnu-radio-4x-oot-module)
 - [Future Work](#future-work)
 - [License](#license)
 
@@ -61,6 +65,10 @@ Generated test documentation, IQ capture details, waterfall plots, and regressio
 - [docs/test-results.md](docs/test-results.md) — unit test log and IQ roundtrip matrix
 - [docs/modulation-captures.md](docs/modulation-captures.md) — per-mode air interfaces, capture durations, and spectrograms
 - [docs/codechart.md](docs/codechart.md) — code and test function map (debug reference)
+- [blocklib/grident/blocks/README.md](blocklib/grident/blocks/README.md) — GNU Radio 4.x block build
+- [TESTING.md](TESTING.md) — tester onboarding and smoke tests
+- [docs/zeromq-protocol.md](docs/zeromq-protocol.md) — LinHT and gr-ident ZeroMQ wire formats and mode examples
+- [apps/flowgraphs/zmq-distributed-demo.md](apps/flowgraphs/zmq-distributed-demo.md) — ZeroMQ distributed edges
 
 Regenerate with:
 
@@ -129,7 +137,7 @@ Used by **NFM 12.5 kHz** (mode 20) and **EchoLink** (mode 110, FM gateway path).
 |---|---|---|
 | Channel | 12.5 kHz NFM | ETSI EN 300 113 |
 | Data burst | 4800 sym/s CPFSK 4-FSK | ETSI TS 102 490 deviations |
-| Sync | 16-bit sequence (see implementation) | gr-ident assigned |
+| Sync | 16-bit sequence | gr-ident assigned (see [Sync Sequences](docs/sync-sequences.md#sync_nfm)) |
 
 ### Profile: `nfm_125_ctcss_4800`
 
@@ -164,7 +172,7 @@ Used by **C4FM / Fusion** (mode 104).
 |---|---|---|
 | Modulation | C4FM 4-FSK | Yaesu System Fusion |
 | Symbol rate | 4800 sym/s | |
-| Sync | 24-bit sequence | gr-ident assigned (Fusion-style) |
+| Sync | 24-bit sequence | gr-ident assigned (see [Sync Sequences](docs/sync-sequences.md#sync_c4fm)) |
 
 ### Profile: `dpmr_4800`
 
@@ -174,7 +182,7 @@ Used by **dPMR** (mode 108).
 |---|---|---|
 | Modulation | 4-FSK | ETSI TS 102 490-1 |
 | Symbol rate | 4800 sym/s | |
-| Sync | 24-bit sequence | gr-ident assigned (dPMR-style) |
+| Sync | 24-bit sequence | gr-ident assigned (see [Sync Sequences](docs/sync-sequences.md#sync_dpmr)) |
 
 ### Profile: `psk31_3125`
 
@@ -184,7 +192,7 @@ Used by **PSK31** (mode 158).
 |---|---|---|
 | Modulation | BPSK | PSK31 amateur digital mode |
 | Symbol rate | 31.25 baud | PSK31 standard |
-| Sync | 16-bit sequence | gr-ident assigned |
+| Sync | 16-bit sequence | gr-ident assigned (see [Sync Sequences](docs/sync-sequences.md#sync_psk31)) |
 
 ### Profile: `rtty_50`
 
@@ -195,7 +203,58 @@ Used by **RTTY** (mode 159).
 | Modulation | 2-FSK | ITA2 radioteletype |
 | Symbol rate | 50 baud | Common amateur RTTY rate |
 | Frequency shift | 170 Hz (mark +85 Hz, space -85 Hz) | ITA2 audio shift |
-| Sync | 16-bit sequence | gr-ident assigned |
+| Sync | 16-bit sequence | gr-ident assigned (see [Sync Sequences](docs/sync-sequences.md#sync_rtty)) |
+
+### Profile: `dmr_4800`
+
+Used by **DMR** modes 100-102, 106, and 109 (test-vector placeholder).
+
+| Parameter | Value | Reference |
+|---|---|---|
+| Modulation | 4-FSK | ETSI TS 102 361 |
+| Symbol rate | 4800 sym/s | |
+| Sync | 24-bit sequence | gr-ident assigned (see [Sync Sequences](docs/sync-sequences.md#sync_dmr)) |
+
+### Profile: `nxdn_4800`
+
+Used by **NXDN** (mode 107).
+
+| Parameter | Value | Reference |
+|---|---|---|
+| Modulation | 4-FSK | NXDN common air interface |
+| Symbol rate | 4800 sym/s | |
+| Sync | 16-bit sequence | gr-ident assigned (see [Sync Sequences](docs/sync-sequences.md#sync_nxdn)) |
+
+### Profile: `m17_4800`
+
+Used by **M17** modes 120 and 121.
+
+| Parameter | Value | Reference |
+|---|---|---|
+| Modulation | 4-FSK | M17 open digital voice |
+| Symbol rate | 4800 sym/s | |
+| Sync | 16-bit sequence | gr-ident assigned (see [Sync Sequences](docs/sync-sequences.md#sync_m17)) |
+
+### Profile: `dstar_4800`
+
+Used by **D-STAR** (mode 103) and **D-STAR Reflector** (mode 115). Test vectors use
+4-FSK at 4800 sym/s as a correlatable placeholder for gateway paths.
+
+| Parameter | Value | Reference |
+|---|---|---|
+| Modulation | 4-FSK (test vectors) | D-STAR digital voice |
+| Symbol rate | 4800 sym/s | |
+| Sync | 16-bit sequence | gr-ident assigned (see [Sync Sequences](docs/sync-sequences.md#sync_dstar)) |
+
+### Profile: `ax25_1200`
+
+Used by **AX.25** (mode 150) and **APRS** (mode 151).
+
+| Parameter | Value | Reference |
+|---|---|---|
+| Modulation | Bell 202 AFSK | AX.25 amateur packet |
+| Symbol rate | 1200 baud | |
+| Sync | 16-bit sequence | gr-ident assigned (see [Sync Sequences](docs/sync-sequences.md#sync_ax25)) |
 
 Mode ID to profile mapping for assigned modes is implemented in
 `python/grident/modulation/registry.py`.
@@ -242,17 +301,17 @@ Golay(24,12) definition as used in, for example, the M17 protocol LICH channel.
 The 12 data bits protected by the Golay codeword are allocated as follows:
 
 ```
-Bit 11        Bit 10        Bit 9         Bits 8–0
-+-----------+-----------+-------------+------------------+
-| Analog /  | Encrypted /| Reserved    | Mode ID          |
-| Digital   | Open       | (set to 0)  | (9 bits, 0–511)  |
-+-----------+-----------+-------------+------------------+
+Bit 11        Bit 10        Bit 9              Bits 8–0
++-----------+-----------+------------------+------------------+
+| Analog /  | Encrypted /| Metadata present | Mode ID          |
+| Digital   | Open       | (optional ext.)  | (9 bits, 0–511)  |
++-----------+-----------+------------------+------------------+
 ```
 
 | Field | Bits | Description |
 |---|---|---|
 | Mode ID | 9 (bits 0–8) | Identifies the specific mode (0–511) |
-| Reserved | 1 (bit 9) | Set to 0, reserved for future use |
+| Metadata present | 1 (bit 9) | 0 = primary preamble only; 1 = secondary metadata codeword follows on air |
 | Encrypted / Open | 1 (bit 10) | 0 = open / unencrypted, 1 = encrypted content |
 | Analog / Digital | 1 (bit 11) | 0 = analog mode, 1 = digital mode |
 
@@ -264,6 +323,52 @@ take upon preamble detection.
 The **Encrypted / Open flag** (bit 10) signals whether the payload content is encrypted.
 Note that encryption may be subject to regulatory restrictions depending on jurisdiction
 and frequency band. Users are responsible for compliance with applicable regulations.
+
+---
+
+## Optional Secondary Metadata Field
+
+When bit 9 (**Metadata present**) is set in the primary preamble field, a second
+Golay(24,12) codeword is transmitted immediately after the primary codeword (still
+before the main payload). The on-air order is:
+
+```
+[ sync ] [ primary Golay 24 bits ] [ secondary Golay 24 bits ] [ payload ... ]
+```
+
+The 12 data bits of the secondary field are allocated as follows:
+
+```
+Bit 11–8       Bit 7–4        Bit 3–0
++-------------+-------------+--------------+
+| Bandwidth   | Codec param | Callsign     |
+| code        | (4 bits)    | nibble       |
++-------------+-------------+--------------+
+```
+
+| Field | Bits | Description |
+|---|---|---|
+| Bandwidth code | 4 (bits 11–8) | Channel bandwidth hint (see table below) |
+| Codec param | 4 (bits 7–4) | Mode-specific sub-codec or rate index (0–15) |
+| Callsign nibble | 4 (bits 3–0) | Upper four bits of CRC-16-CCITT of callsign (0 if none) |
+
+| Bandwidth code | Meaning |
+|---|---|
+| 0 | Unspecified |
+| 1 | 6.25 kHz |
+| 2 | 8.33 kHz |
+| 3 | 12.5 kHz |
+| 4 | 20 kHz |
+| 5 | 25 kHz |
+| 6 | WFM / wide |
+| 7–15 | Reserved |
+
+Implementations: `python/grident/metadata_field.py`, `blocklib/grident/lib/metadata_field.cc`,
+GNU Radio 4.x blocks `MetadataEncode` and `MetadataDecode`.
+
+Receivers that do not implement the secondary field must still decode the primary
+preamble when bit 9 = 0. When bit 9 = 1, conforming receivers should decode both
+codewords before routing to the payload demodulator.
 
 ---
 
@@ -485,14 +590,15 @@ the transmitting station and are out of scope for gr-ident.
 
 ### Experimental Range
 
-Mode IDs 300–498 are reserved for experimental and user-defined modes. These are not
-standardized and may be assigned freely for development and research purposes. An
-implementer using this range should document their assignment locally to avoid conflicts
-within their own project.
+Mode IDs 300–498 are reserved for experimental and user-defined modes. Assignments
+within this range are recorded in the public
+[experimental mode registry](docs/experimental-mode-registry.md)
+(`registry/experimental-modes.json`).
 
 | Range | Hex Range | Description |
 |---|---|---|
-| 300–498 | 0x12C–0x1F2 | Experimental / user-defined |
+| 300 | 0x12C | [Sleipnir](https://github.com/Supermagnum/gr-sleipnir) — 8-carrier QPSK digital voice (see [registry](docs/experimental-mode-registry.md)) |
+| 301–498 | 0x12D–0x1F2 | Experimental / user-defined (unassigned) |
 | 499 | 0x1F3 | Experimental range upper boundary marker |
 | 500–510 | 0x1F4–0x1FE | Reserved for future standardization |
 | 511 | 0x1FF | Test / loopback |
@@ -615,15 +721,42 @@ described in the gr-linux-crypto signing and verification documentation.
 
 ---
 
+## GNU Radio 4.x OOT module
+
+The reference out-of-tree module lives under `blocklib/grident/`. CMake builds:
+
+| Plugin | Contents |
+|---|---|
+| `GrIdentBlocks` | Golay, preamble/metadata codec blocks, `PreambleOnPtt` (PTT-gated TX) |
+| `GrIdentZmqBlocks` | ZeroMQ PUSH/PULL IQ edges, preamble JSON PUB, TX/PTT SUB (requires libzmq) |
+
+Build:
+
+```bash
+cmake -B build-gr4 -DCMAKE_PREFIX_PATH=/opt/gnuradio4-gcc
+cmake --build build-gr4
+```
+
+ZeroMQ blocks support distributed flowgraphs (IQ between hosts), publishing decoded
+preamble fields as JSON on receive, and **TX/PTT control** on transmit (`ZmqTxControlSub`
+into `PreambleOnPtt`). The default TX control profile matches the
+[LinHT Handheld Transceiver](https://github.com/M17-Project/LinHT-utils) PMT `SOT`/`EOT`
+messages on `ipc:///tmp/ptt_msg`; use `profile=grident` for standalone multipart JSON/text.
+See [`docs/zeromq-protocol.md`](docs/zeromq-protocol.md) for wire formats and source references.
+See [`apps/flowgraphs/zmq-distributed-demo.md`](apps/flowgraphs/zmq-distributed-demo.md).
+
+IQ-level detection without GNU Radio remains in `python/grident/iq_decode.py` and
+`blocklib/grident/lib/preamble_detect.cc`.
+
+---
+
 ## Future Work
 
-- Definition of a standardized synchronization sequence for common modulations
-- Per-mode metadata extensions (bandwidth, codec parameters, callsign) in an
-  optional secondary field, also Golay-protected
-- A public mode ID registry for experimental assignments
-- GNU Radio 4.x reference block implementation
-- Reference integration example combining preamble detection with gr-linux-crypto
-  key retrieval and payload decryption in a single GNU Radio 4.x flowgraph
+- Additional modulation profiles and normative sync sequences for remaining mode IDs
+- Hosted web UI for the experimental mode registry (JSON registry exists in-repo)
+- GNU Radio 4.x streaming blocks for BPSK / 2-FSK profiles and full in-process flowgraph examples
+- End-to-end gr-linux-crypto demo flowgraph (design reference:
+  [`apps/flowgraphs/gr-linux-crypto-demo.md`](apps/flowgraphs/gr-linux-crypto-demo.md))
 - Formal assignment of mode IDs for additional regional and emerging modes
 
 ---

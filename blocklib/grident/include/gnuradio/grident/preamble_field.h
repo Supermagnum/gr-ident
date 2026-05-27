@@ -10,6 +10,7 @@ struct preamble_field {
     uint16_t mode_id = 0;
     bool encrypted = false;
     bool digital = false;
+    bool metadata_present = false;
 };
 
 uint16_t pack_preamble_field(const preamble_field& field);

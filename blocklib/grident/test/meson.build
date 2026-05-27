@@ -12,3 +12,19 @@ test_preamble_field = executable(
 
 test('golay codec', test_golay)
 test('preamble field', test_preamble_field)
+
+test_metadata_field = executable(
+    'test_metadata_field',
+    'test_metadata_field.cc',
+    dependencies : [grident_dep],
+)
+
+test('metadata field', test_metadata_field)
+
+test_tx_control = executable(
+    'test_tx_control',
+    'test_tx_control.cc',
+    dependencies : [grident_dep],
+)
+
+test('tx control parse', test_tx_control)

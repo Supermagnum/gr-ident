@@ -105,6 +105,7 @@ constexpr mode_entry k_modes[] = {
     { 262, { "FM Satellite + CTCSS", false, "satellite" } },
     { 264, { "QO-100 NB", false, "satellite" } },
     { 265, { "QO-100 WB", true, "satellite" } },
+    { 300, { "Sleipnir", true, "experimental" } },
 };
 
 } // namespace

@@ -1,0 +1,11 @@
+blocks:
+  - id: gr::grident::IqCf32FileSource
+    parameters:
+      name: iq_src
+      path: REPLACE_ME.cf32
+  - id: gr::grident::Cpfsk4PreambleDetect
+    parameters:
+      name: detect
+      mode_id: 110
+connections:
+  - [iq_src, out, detect, in]

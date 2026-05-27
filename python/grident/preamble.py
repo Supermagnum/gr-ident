@@ -12,12 +12,15 @@ class PreambleField:
     mode_id: int = 0
     encrypted: bool = False
     digital: bool = False
+    metadata_present: bool = False
 
 
 def pack_field(field: PreambleField) -> int:
     if field.mode_id < 0 or field.mode_id > 511:
         raise ValueError("mode_id must be 0..511")
     raw = field.mode_id & 0x1FF
+    if field.metadata_present:
+        raw |= 1 << 9
     if field.encrypted:
         raw |= 1 << 10
     if field.digital:
@@ -26,12 +29,14 @@ def pack_field(field: PreambleField) -> int:
 
 
 def unpack_field(raw_12: int, strict_reserved: bool = True) -> PreambleField:
-    if strict_reserved and ((raw_12 >> 9) & 1):
-        raise ValueError("reserved bit 9 must be zero")
+    metadata_present = bool((raw_12 >> 9) & 1)
+    if strict_reserved and metadata_present:
+        raise ValueError("bit 9 set but strict_reserved=True (legacy decode)")
     return PreambleField(
         mode_id=raw_12 & 0x1FF,
         encrypted=bool((raw_12 >> 10) & 1),
         digital=bool((raw_12 >> 11) & 1),
+        metadata_present=metadata_present,
     )
 
 
@@ -43,7 +48,7 @@ def decode_preamble(codeword_24: int) -> tuple[PreambleField | None, int, bool]:
     data, errors, valid = decode_golay24(codeword_24)
     if not valid:
         return None, errors, False
-    return unpack_field(data), errors, True
+    return unpack_field(data, strict_reserved=False), errors, valid
 
 
 def codeword_to_bits_msb_first(codeword_24: int) -> list[int]:

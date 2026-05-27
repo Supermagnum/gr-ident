@@ -7,6 +7,7 @@
 #include <gnuradio-4.0/meta/reflection.hpp>
 
 #include <gnuradio/grident/golay24_12.h>
+#include <gnuradio/grident/metadata_field.h>
 #include <gnuradio/grident/preamble_codec.h>
 #include <gnuradio/grident/preamble_field.h>
 
@@ -66,10 +67,11 @@ Emits n_samples codewords (default 1) then stops.)"">;
     Annotated<uint16_t, "mode_id", Visible, Doc<"Mode ID (0..511)">> mode_id = 120U;
     Annotated<bool, "encrypted", Visible, Doc<"Encrypted / open flag (bit 10)">> encrypted = false;
     Annotated<bool, "digital", Visible, Doc<"Analog / digital flag (bit 11)">> digital = true;
+    Annotated<bool, "metadata_present", Visible, Doc<"Optional secondary metadata codeword follows (bit 9)">> metadata_present = false;
     Annotated<gr::Size_t, "n_samples", Doc<"Number of codewords to emit (0 = infinite)">> n_samples = 1U;
     Annotated<gr::Size_t, "count", Doc<"Emitted sample count (diagnostics)">> count = 0U;
 
-    GR_MAKE_REFLECTABLE(PreambleSource, out, mode_id, encrypted, digital, n_samples, count);
+    GR_MAKE_REFLECTABLE(PreambleSource, out, mode_id, encrypted, digital, metadata_present, n_samples, count);
 
     void reset() { count = 0U; }
 
@@ -80,8 +82,120 @@ Emits n_samples codewords (default 1) then stops.)"">;
             this->requestStop();
         }
 
-        preamble_field field{ mode_id, encrypted, digital };
+        preamble_field field{ mode_id, encrypted, digital, metadata_present };
         return encode_preamble(field);
+    }
+};
+
+GR_REGISTER_BLOCK("gr::grident::MetadataEncode", gr::grident::MetadataEncode)
+
+struct MetadataEncode : Block<MetadataEncode> {
+    using Description = Doc<R""(@brief Encode optional secondary metadata with Golay(24,12).
+
+Input fields are packed from block parameters; output is a 24-bit codeword.)"">;
+
+    PortOut<uint32_t> out;
+
+    Annotated<uint8_t, "bandwidth_code", Visible> bandwidth_code = 0U;
+    Annotated<uint8_t, "codec_param", Visible> codec_param = 0U;
+    Annotated<uint8_t, "callsign_nibble", Visible> callsign_nibble = 0U;
+
+    GR_MAKE_REFLECTABLE(MetadataEncode, out, bandwidth_code, codec_param, callsign_nibble);
+
+    [[nodiscard]] uint32_t processOne()
+    {
+        metadata_field field{
+            bandwidth_code,
+            codec_param,
+            callsign_nibble,
+        };
+        return encode_metadata(field);
+    }
+};
+
+GR_REGISTER_BLOCK("gr::grident::MetadataDecode", gr::grident::MetadataDecode)
+
+struct MetadataDecode : Block<MetadataDecode> {
+    using Description = Doc<R""(@brief Decode a Golay-protected secondary metadata codeword.
+
+Outputs packed 12-bit metadata in uint16.)"">;
+
+    PortIn<uint32_t>  in;
+    PortOut<uint16_t> out;
+
+    GR_MAKE_REFLECTABLE(MetadataDecode, in, out);
+
+    [[nodiscard]] uint16_t processOne(uint32_t codeword) const
+    {
+        bool valid = false;
+        const auto field = decode_metadata_field(codeword, valid);
+        if (!valid) {
+            throw gr::exception("gr-ident metadata Golay decode failed");
+        }
+        return pack_metadata_field(field);
+    }
+};
+
+GR_REGISTER_BLOCK("gr::grident::PreambleOnPtt", gr::grident::PreambleOnPtt)
+
+struct PreambleOnPtt : Block<PreambleOnPtt> {
+    using Description = Doc<R""(@brief Emit gr-ident preamble Golay codeword(s) on PTT key-down.
+
+Wire tx_in from a GPIO source, manual key, or gr::grident::zeromq::ZmqTxControlSub. On each
+0-to-1 transition, outputs one primary preamble codeword and optionally one metadata codeword.
+tx_out mirrors tx_in for gating payload samples downstream.)"">;
+
+    PortIn<uint8_t>   tx_in;
+    PortOut<uint32_t> preamble_out;
+    PortOut<uint8_t>  tx_out;
+
+    Annotated<uint16_t, "mode_id", Visible, Doc<"Mode ID (0..511)">> mode_id = 120U;
+    Annotated<bool, "encrypted", Visible, Doc<"Encrypted / open flag (bit 10)">> encrypted = false;
+    Annotated<bool, "digital", Visible, Doc<"Analog / digital flag (bit 11)">> digital = true;
+    Annotated<bool, "metadata_present", Visible, Doc<"Emit secondary metadata codeword after preamble (bit 9)">> metadata_present = false;
+    Annotated<uint8_t, "bandwidth_code", Visible, Doc<"Secondary metadata: bandwidth code">> bandwidth_code = 0U;
+    Annotated<uint8_t, "codec_param", Visible, Doc<"Secondary metadata: codec parameter">> codec_param = 0U;
+    Annotated<uint8_t, "callsign_nibble", Visible, Doc<"Secondary metadata: callsign nibble">> callsign_nibble = 0U;
+    Annotated<gr::Size_t, "burst_count", Doc<"Preamble bursts emitted (diagnostics)">> burst_count = 0U;
+
+    GR_MAKE_REFLECTABLE(
+        PreambleOnPtt,
+        tx_in,
+        preamble_out,
+        tx_out,
+        mode_id,
+        encrypted,
+        digital,
+        metadata_present,
+        bandwidth_code,
+        codec_param,
+        callsign_nibble,
+        burst_count);
+
+    bool       _prev_tx       = false;
+    bool       _emit_metadata = false;
+
+    [[nodiscard]] std::tuple<uint32_t, uint8_t> processOne(uint8_t tx)
+    {
+        uint32_t codeword = 0U;
+
+        if (_emit_metadata) {
+            metadata_field field{
+                bandwidth_code,
+                codec_param,
+                callsign_nibble,
+            };
+            codeword        = encode_metadata(field);
+            _emit_metadata  = false;
+        } else if (tx != 0U && _prev_tx == 0U) {
+            burst_count++;
+            preamble_field field{ mode_id, encrypted, digital, metadata_present };
+            codeword       = encode_preamble(field);
+            _emit_metadata = metadata_present;
+        }
+
+        _prev_tx = tx;
+        return { codeword, tx };
     }
 };
 
@@ -111,6 +225,9 @@ Use unpack_preamble_field in downstream logic for structured access.)"">;
 static_assert(BlockLike<GolayEncode>);
 static_assert(BlockLike<GolayDecode>);
 static_assert(BlockLike<PreambleSource>);
+static_assert(BlockLike<PreambleOnPtt>);
+static_assert(BlockLike<MetadataEncode>);
+static_assert(BlockLike<MetadataDecode>);
 static_assert(BlockLike<PreambleDecodeBlock>);
 
 } // namespace gr::grident

@@ -1,0 +1,24 @@
+blocks:
+  - id: gr::grident::zeromq::ZmqTxControlSub
+    parameters:
+      name: tx_ctrl
+      profile: linht
+      endpoint: ipc:///tmp/ptt_msg
+      bind: false
+      topic: ""
+  - id: gr::grident::PreambleOnPtt
+    parameters:
+      name: preamble
+      mode_id: 110
+      digital: true
+      encrypted: false
+  - id: gr::testing::NullSink<uint32_t>
+    parameters:
+      name: preamble_sink
+  - id: gr::testing::NullSink<uint8_t>
+    parameters:
+      name: tx_sink
+connections:
+  - [tx_ctrl, tx_state, preamble, tx_in]
+  - [preamble, preamble_out, preamble_sink, in]
+  - [preamble, tx_out, tx_sink, in]

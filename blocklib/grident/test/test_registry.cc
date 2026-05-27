@@ -1,5 +1,6 @@
 #include <gnuradio-4.0/BlockRegistry.hpp>
 #include <gnuradio-4.0/GrIdentBlocks.hpp>
+#include <gnuradio-4.0/grident/GrIdentIqBlocks.hpp>
 
 #include <cstdio>
 #include <cstdlib>
@@ -28,7 +29,11 @@ int main()
         "gr::grident::GolayEncode",
         "gr::grident::GolayDecode",
         "gr::grident::PreambleSource",
+        "gr::grident::PreambleOnPtt",
         "gr::grident::PreambleDecode",
+        "gr::grident::IqCf32FileSource",
+        "gr::grident::Cpfsk4SyncCorrelator",
+        "gr::grident::Cpfsk4PreambleDetect",
     };
 
     for (const char* name : blocks) {

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .iq_samples import IqSamples
+from .metadata_field import MetadataField
 from .modulation.registry import get_profile, get_profile_for_mode
 from .preamble import PreambleField
 
@@ -22,6 +23,8 @@ class IqDecodeResult:
     sync_start: int
     preamble_start: int
     profile: str
+    metadata_present: bool = False
+    metadata: MetadataField | None = None
 
 
 def decode_iq_signal(
@@ -33,7 +36,7 @@ def decode_iq_signal(
     if decoded is None:
         return None
 
-    field, errors, valid, codeword, sync_start, preamble_start = decoded
+    field, metadata, errors, valid, codeword, sync_start, preamble_start = decoded
     if field is None:
         return IqDecodeResult(
             mode_id=0,
@@ -57,6 +60,8 @@ def decode_iq_signal(
         sync_start=sync_start,
         preamble_start=preamble_start,
         profile=profile.name,
+        metadata_present=field.metadata_present,
+        metadata=metadata,
     )
 
 
@@ -85,4 +90,5 @@ def field_from_result(result: IqDecodeResult) -> PreambleField:
         mode_id=result.mode_id,
         encrypted=result.encrypted,
         digital=result.digital,
+        metadata_present=result.metadata_present,
     )
