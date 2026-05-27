@@ -11,6 +11,10 @@
 
 - [Overview](#overview)
 - [Documentation](#documentation)
+  - [Documentation index](docs/README.md)
+  - [Test results](docs/test-results.md)
+  - [Modulation captures](docs/modulation-captures.md)
+  - [Code chart](docs/codechart.md)
 - [Design Goals](#design-goals)
   - [Preamble Structure](#preamble-structure)
   - [Modulation Profiles](#modulation-profiles)
@@ -54,8 +58,8 @@ CPU hardware with no GPU requirement.
 Generated test documentation, IQ capture details, waterfall plots, and regression results:
 
 - [docs/README.md](docs/README.md) — documentation index and plot parameters
-- [docs/modulation-captures.md](docs/modulation-captures.md) — per-mode air interfaces, capture durations, and spectrograms
 - [docs/test-results.md](docs/test-results.md) — unit test log and IQ roundtrip matrix
+- [docs/modulation-captures.md](docs/modulation-captures.md) — per-mode air interfaces, capture durations, and spectrograms
 - [docs/codechart.md](docs/codechart.md) — code and test function map (debug reference)
 
 Regenerate with:
