@@ -9,6 +9,16 @@ endif()
 
 project(grident LANGUAGES CXX VERSION 0.1.0)
 
+include(GNUInstallDirs)
+
+# Install into the same prefix as GNU Radio 4 unless the user sets CMAKE_INSTALL_PREFIX.
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    list(GET CMAKE_PREFIX_PATH 0 _grident_gr4_prefix)
+    if(_grident_gr4_prefix)
+        set(CMAKE_INSTALL_PREFIX "${_grident_gr4_prefix}" CACHE PATH "gr-ident install prefix" FORCE)
+    endif()
+endif()
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -138,3 +148,36 @@ add_test(
 if(GRIDENT_ZMQ_FOUND)
     add_test(NAME grident_ptt_zmq_smoke COMMAND grident_ptt_zmq_smoke)
 endif()
+
+# --- install (run after: cmake --build build-gr4) ---
+
+set(GRIDENT_GR4_APPS grident_receive_flowgraph grident_run_flowgraph)
+if(GRIDENT_ZMQ_FOUND)
+    list(APPEND GRIDENT_GR4_APPS grident_ptt_zmq_smoke)
+endif()
+
+install(TARGETS ${GRIDENT_GR4_APPS} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+install(
+    DIRECTORY "${CMAKE_SOURCE_DIR}/python/grident"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/gr-ident/python"
+    PATTERN "__pycache__" EXCLUDE
+    FILES_MATCHING PATTERN "*.py"
+)
+
+install(
+    PROGRAMS
+        "${CMAKE_SOURCE_DIR}/apps/grident_iq_test.py"
+        "${CMAKE_SOURCE_DIR}/apps/grident_validate.py"
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+configure_file(
+    "${CMAKE_SOURCE_DIR}/cmake/gr-ident-env.sh.in"
+    "${CMAKE_BINARY_DIR}/gr-ident-env.sh"
+    @ONLY
+)
+install(
+    FILES "${CMAKE_BINARY_DIR}/gr-ident-env.sh"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/gr-ident"
+)

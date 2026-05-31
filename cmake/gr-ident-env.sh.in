@@ -1,0 +1,4 @@
+# Source this file to use installed gr-ident Python modules and tools.
+#   source "@CMAKE_INSTALL_PREFIX@/share/gr-ident/gr-ident-env.sh"
+export PYTHONPATH="@CMAKE_INSTALL_PREFIX@/share/gr-ident/python${PYTHONPATH:+:$PYTHONPATH}"
+export PATH="@CMAKE_INSTALL_PREFIX@/bin:${PATH}"

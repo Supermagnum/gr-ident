@@ -10,6 +10,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
+- [Installation](#installation)
 - [Documentation](#documentation)
 - [Design Goals](#design-goals)
 - [Preamble Structure](#preamble-structure)
@@ -49,7 +50,15 @@ and software-defined radio tooling.
 
 The preamble allows a receiver to identify the incoming signal mode — analog or digital —
 before committing to a demodulator, without relying on statistical signal classification
-methods such as machine learning.
+methods such as machine learning. Mode identification on the air is by **Golay-decoded
+mode ID** in the preamble, not by a neural network.
+
+An **optional** neural-network classifier from
+[radio-modulation-validator](https://github.com/Supermagnum/radio-modulation-validator)
+(rmv) may run in parallel for validation or repeater fallback. It classifies **modulation
+family and order** (for example FM / NBFM_25 or FSK / DMR), not the full 9-bit gr-ident
+mode ID table. Preamble routing always takes precedence when a valid preamble is present.
+See [Neural Network Classifiers](#neural-network-classifiers).
 
 The preamble is self-contained, protected by forward error correction, and is entirely
 transparent to any downstream LDPC decoder. It is designed to be decodable on modest
@@ -60,6 +69,114 @@ microsecond-latency. For signals without a preamble (conventional legacy radios,
 interference), an optional neural network classifier can identify the modulation family
 and order independently. The two layers are complementary — the preamble controls routing,
 the classifier verifies it.
+
+---
+
+## Installation
+
+gr-ident is **not** in Debian/Ubuntu apt. Use apt for dependencies, then **compile** and
+**install** from a git checkout. Full tester workflows are in [`TESTING.md`](TESTING.md).
+
+### 1. Dependencies (apt)
+
+```bash
+sudo apt update
+sudo apt install -y \
+  python3 python3-zmq \
+  meson ninja-build build-essential \
+  cmake pkg-config g++-14 \
+  libzmq3-dev
+```
+
+If `g++-14` is unavailable on your release, omit it (CMake falls back to `g++` from
+`build-essential`; C++23 is required for the GNU Radio 4 plugin).
+
+Install [GNU Radio 4.x](https://wiki.gnuradio.org/) separately (not an apt package here).
+These docs use prefix `/opt/gnuradio4-gcc`.
+
+### 2. Source
+
+```bash
+git clone https://github.com/Supermagnum/gr-ident.git
+cd gr-ident
+```
+
+### 3. Configure
+
+```bash
+cmake -B build-gr4 \
+  -DCMAKE_PREFIX_PATH=/opt/gnuradio4-gcc \
+  -DCMAKE_INSTALL_PREFIX=/opt/gnuradio4-gcc
+```
+
+`CMAKE_INSTALL_PREFIX` defaults to the GNU Radio prefix when unset. Use the same path for
+both variables so plugins, binaries, and Python land in one tree.
+
+### 4. Compile
+
+```bash
+cmake --build build-gr4 -j"$(nproc)"
+```
+
+Optional checks before install:
+
+```bash
+ctest --test-dir build-gr4 --output-on-failure
+meson setup build && meson test -C build
+PYTHONPATH=python python3 -m unittest discover -s python/tests -v
+```
+
+### 5. Install
+
+```bash
+sudo cmake --install build-gr4
+```
+
+This installs into `CMAKE_INSTALL_PREFIX` (example layout):
+
+| Path under prefix | Contents |
+|---|---|
+| `lib/gnuradio-4/plugins/` | `GrIdentBlocksShared`, `GrIdentZmqBlocksShared` |
+| `include/gnuradio-4.0/` | Block headers |
+| `bin/` | `grident_receive_flowgraph`, `grident_run_flowgraph`, `grident_ptt_zmq_smoke`, `grident_iq_test.py`, `grident_validate.py` |
+| `share/gr-ident/python/` | Python `grident` package |
+| `share/gr-ident/gr-ident-env.sh` | Sets `PYTHONPATH` and `PATH` for installed tools |
+
+Without `libzmq3-dev` at configure time, ZeroMQ plugins and `grident_ptt_zmq_smoke` are not built.
+
+### 6. Use the installation
+
+```bash
+source /opt/gnuradio4-gcc/share/gr-ident/gr-ident-env.sh
+grident_receive_flowgraph \
+  python/tests/fixtures/common_modes/mode_110.cf32 110
+```
+
+Add the `source` line to your shell profile for a permanent setup.
+
+### Develop from a build tree (no install)
+
+Run from the repository without step 5:
+
+```bash
+export PYTHONPATH="$(pwd)/python"
+./build-gr4/grident_receive_flowgraph \
+  python/tests/fixtures/common_modes/mode_110.cf32 110
+```
+
+### Optional components
+
+| Component | When | Purpose |
+|---|---|---|
+| **ImageMagick** | `sudo apt install -y imagemagick` | Regenerate `docs/` waterfall PNGs |
+| **radio-modulation-validator** | Sibling clone or `PATH` | Signal-layer IQ validation ([rmv](https://github.com/Supermagnum/radio-modulation-validator)) |
+
+Preamble validation does not require rmv:
+
+```bash
+grident_validate.py --preamble-only
+```
+(after sourcing `gr-ident-env.sh`, or `PYTHONPATH=python` from the source tree)
 
 ---
 
@@ -906,6 +1023,37 @@ The 43 order classes include protocol-specific modes generated from published st
 
 Training data is generated independently from gr-ident blocks — only GNU Radio
 built-ins and numpy/scipy are used, keeping the validation boundary clean.
+
+The models output **modulation family and order**, not a gr-ident mode ID (0–511).
+Preamble routing always takes precedence when a valid preamble is present.
+
+**gr-ident mode IDs checked against the classifier in this repo**
+
+Signal-layer validation runs only on modes with committed IQ fixtures (eight modes
+today). Each fixture is compared to the expected family/order in
+`python/grident/rmv_integration/mode_map.py`:
+
+| Mode ID | Name | Expected family | Expected order |
+|---:|---|---|---|
+| 20 | NFM 12.5 kHz | FM | NBFM_25 |
+| 30 | NFM 12.5 kHz + CTCSS | FM | NBFM_25 |
+| 40 | NFM 12.5 kHz + DCS | FM | NBFM_25 |
+| 104 | C4FM / Fusion | FSK | YSF |
+| 108 | dPMR | FSK | dPMR |
+| 110 | EchoLink | FSK | CPFSK |
+| 158 | PSK31 | PSK | BPSK |
+| 159 | RTTY | FSK | 2FSK |
+
+Additional mode IDs are mapped in `mode_map.py` for future fixtures or live cross-check
+(for example DMR 100–102, D-STAR 103, M17 120–121, Sleipnir 300). Mode IDs 0, 60, 109,
+and 511 are excluded from signal validation.
+
+**Known classifier ambiguities** (family match still passes; order may disagree):
+
+| Mode ID | Issue |
+|---:|---|
+| 107 | NXDN and dPMR share identical 4-FSK parameters |
+| 21 | Aviation AM vs NFM 8.33 kHz depends on fixture context |
 
 ### INT8 Quantisation and NPU Deployment
 

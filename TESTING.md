@@ -5,60 +5,65 @@ and GNU Radio 4.x flowgraph runners.
 
 ## Prerequisites
 
-### All testers (Python IQ path)
+### Debian / Ubuntu (apt)
 
-| Package | Debian/Ubuntu | Purpose |
-|---|---|---|
-| Python 3.10+ | `python3` | Reference decode and unit tests |
-| Meson, Ninja | `meson ninja-build` | C++ codec library tests |
+**Minimal** (Python IQ path + Meson codec tests; no GNU Radio):
+
+```bash
+sudo apt update
+sudo apt install -y python3 meson ninja-build build-essential
+```
+
+**Full tester / GR4 plugin build** (adds CMake, ZMQ, and Python ZMQ):
+
+```bash
+sudo apt update
+sudo apt install -y \
+  python3 python3-zmq \
+  meson ninja-build build-essential \
+  cmake pkg-config g++-14 \
+  libzmq3-dev
+```
+
+| Package | Purpose |
+|---|---|
+| `python3` | Reference decode and unit tests (3.10+) |
+| `meson`, `ninja-build` | C++ codec library tests |
+| `cmake`, `pkg-config`, `g++-14` | Builds `GrIdentBlocks` GR4 plugin (CMake picks `g++-14` when present) |
+| `libzmq3-dev` | ZeroMQ GR4 blocks; without it, PTT smoke tests are skipped |
+| `python3-zmq` | Python PTT control helpers and tests |
+
+**GNU Radio 4.x** is not an apt package in these commands. Install GR4 separately and set
+`CMAKE_PREFIX_PATH` to that prefix (default in docs: `/opt/gnuradio4-gcc`).
 
 No GNU Radio install is required for the Python-only path.
 
-### GNU Radio 4.x plugin testers
+Optional documentation plots: `sudo apt install -y imagemagick`
 
-| Package | Debian/Ubuntu | Purpose |
-|---|---|---|
-| GNU Radio 4.x | Prebuilt tree or source install | GR4 headers and core libraries |
-| GCC 14 | `g++-14` | C++23 build (CMake selects `g++-14` when present) |
-| CMake 3.24+ | `cmake` | Builds `GrIdentBlocks` plugin |
-| pkg-config | `pkg-config` | Finds system libraries |
+## Build and install
 
-Set `CMAKE_PREFIX_PATH` to your GNU Radio 4 install (default in docs: `/opt/gnuradio4-gcc`).
-
-### PTT / ZeroMQ tests
-
-These require the optional `GrIdentZmqBlocks` plugin. Install:
-
-| Package | Debian/Ubuntu | Purpose |
-|---|---|---|
-| libzmq | `libzmq3-dev` | ZeroMQ C library + headers (cppzmq) |
-| pyzmq | `python3-zmq` or `pip install pyzmq` | Python PTT control helpers and tests |
-
-Without `libzmq3-dev`, CMake still builds `GrIdentBlocks` but skips ZMQ blocks and PTT smoke tests.
-
-## Build
-
-### Python + Meson codec library
+From the repository root after [apt prerequisites](#debian--ubuntu-apt):
 
 ```bash
-meson setup build
-meson test -C build
+cmake -B build-gr4 \
+  -DCMAKE_PREFIX_PATH=/opt/gnuradio4-gcc \
+  -DCMAKE_INSTALL_PREFIX=/opt/gnuradio4-gcc
+cmake --build build-gr4 -j"$(nproc)"
+sudo cmake --install build-gr4
+source /opt/gnuradio4-gcc/share/gr-ident/gr-ident-env.sh
+```
+
+### Tests before or after install
+
+```bash
+ctest --test-dir build-gr4 --output-on-failure
+meson setup build && meson test -C build
 PYTHONPATH=python python3 -m unittest discover -s python/tests -v
 ```
 
-### GNU Radio 4.x plugin and flowgraph runners
-
-```bash
-cmake -B build-gr4 -DCMAKE_PREFIX_PATH=/opt/gnuradio4-gcc
-cmake --build build-gr4
-ctest --test-dir build-gr4 --output-on-failure
-```
-
-Optional install into the GNU Radio prefix:
-
-```bash
-cmake --install build-gr4 --prefix /opt/gnuradio4-gcc
-```
+Installed tools (`grident_receive_flowgraph`, `grident_iq_test.py`, etc.) are on `PATH`
+after sourcing `gr-ident-env.sh`. From a build tree without install, use
+`./build-gr4/...` and `PYTHONPATH=python`.
 
 ## Five-minute smoke tests
 

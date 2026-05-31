@@ -3,15 +3,13 @@
 Build the gr-ident plugin for GNU Radio 4.x (header-template blocks + shared plugin):
 
 ```bash
-cmake -B build-gr4 -DCMAKE_PREFIX_PATH=/opt/gnuradio4-gcc
+cmake -B build-gr4 \
+  -DCMAKE_PREFIX_PATH=/opt/gnuradio4-gcc \
+  -DCMAKE_INSTALL_PREFIX=/opt/gnuradio4-gcc
 cmake --build build-gr4
 ctest --test-dir build-gr4 --output-on-failure
-```
-
-Install (optional):
-
-```bash
-cmake --install build-gr4 --prefix /opt/gnuradio4-gcc
+sudo cmake --install build-gr4
+source /opt/gnuradio4-gcc/share/gr-ident/gr-ident-env.sh
 ```
 
 Requires `libzmq3-dev` (and cppzmq headers) for ZeroMQ blocks.
