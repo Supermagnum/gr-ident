@@ -150,6 +150,24 @@ PYTHONPATH=python python3 python/grident/generate_docs.py
 
 Requires ImageMagick (`convert`) for PNG waterfalls.
 
+## Signal validation (radio-modulation-validator)
+
+`grident-validate` runs two-layer validation on committed IQ test vectors:
+
+```bash
+PYTHONPATH=python python3 apps/grident_validate.py \
+  --fixtures python/tests/fixtures/common_modes/
+```
+
+Requires [radio-modulation-validator](https://github.com/Supermagnum/radio-modulation-validator)
+installed at `../radio-modulation-validator/` or on `PATH`. Preamble-only validation runs without it:
+
+```bash
+PYTHONPATH=python python3 apps/grident_validate.py --preamble-only
+```
+
+Results are written to `docs/validation-report.md`. See [`docs/rmv-integration.md`](docs/rmv-integration.md).
+
 ## Known limits
 
 - `Cpfsk4PreambleDetect` and `Cpfsk4SyncCorrelator` apply to **CPFSK 4-FSK** profiles only (modes such as 20, 104, 110). PSK31 and RTTY use different air interfaces; use the Python `iq_decode.py` path for those modes.

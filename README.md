@@ -19,6 +19,7 @@
   - [Experimental mode registry](docs/experimental-mode-registry.md)
   - [ZeroMQ protocol](docs/zeromq-protocol.md)
   - [Gateway integration (VoIP + ZMQ + gr-linux-crypto)](docs/gateway-integration.md)
+  - [radio-modulation-validator integration](docs/rmv-integration.md)
 - [Design Goals](#design-goals)
   - [Preamble Structure](#preamble-structure)
   - [Modulation Profiles](#modulation-profiles)
@@ -70,6 +71,7 @@ Generated test documentation, IQ capture details, waterfall plots, and regressio
 - [TESTING.md](TESTING.md) — tester onboarding and smoke tests
 - [docs/zeromq-protocol.md](docs/zeromq-protocol.md) — LinHT and gr-ident ZeroMQ wire formats and mode examples
 - [docs/gateway-integration.md](docs/gateway-integration.md) — VoIP gateway adapters, ZeroMQ, gr-linux-crypto
+- [docs/rmv-integration.md](docs/rmv-integration.md) — two-layer IQ validation via radio-modulation-validator
 - [apps/flowgraphs/zmq-distributed-demo.md](apps/flowgraphs/zmq-distributed-demo.md) — ZeroMQ distributed edges
 
 Regenerate with:
@@ -767,6 +769,22 @@ See [`apps/flowgraphs/zmq-distributed-demo.md`](apps/flowgraphs/zmq-distributed-
 
 IQ-level detection without GNU Radio remains in `python/grident/iq_decode.py` and
 `blocklib/grident/lib/preamble_detect.cc`.
+
+### IQ validation (radio-modulation-validator)
+
+Committed IQ test vectors can be checked in two layers with `grident-validate`:
+
+1. **Preamble** — Golay(24,12) encode/decode roundtrip against fixture codewords (no external deps)
+2. **Signal** — optional classification via [radio-modulation-validator](https://github.com/Supermagnum/radio-modulation-validator) (rmv)
+
+```bash
+PYTHONPATH=python python3 apps/grident_validate.py --preamble-only
+PYTHONPATH=python python3 apps/grident_validate.py \
+  --fixtures python/tests/fixtures/common_modes/
+```
+
+If rmv is not installed, preamble checks still run and signal validation is skipped.
+See [`docs/rmv-integration.md`](docs/rmv-integration.md) and [`TESTING.md`](TESTING.md).
 
 ---
 

@@ -9,6 +9,8 @@ Generated test documentation for gr-ident modulation profiles and IQ captures.
 - [Modulation captures and waterfall plots](modulation-captures.md)
 - [ZeroMQ protocol (LinHT and gr-ident)](zeromq-protocol.md)
 - [Gateway integration (VoIP, ZMQ, gr-linux-crypto)](gateway-integration.md)
+- [radio-modulation-validator integration](rmv-integration.md)
+- [Validation report example](validation-report-example.md)
 - [Test results](test-results.md)
 - [Code chart](codechart.md)
 - [Sync sequences (normative)](sync-sequences.md)
@@ -31,6 +33,23 @@ Regenerated captures live in:
 
 - `test_iq/vectors/common/` — development vectors
 - `python/tests/fixtures/common_modes/` — regression fixtures
+
+## Signal validation
+
+Two-layer validation on committed IQ vectors (`grident-validate`):
+
+```bash
+PYTHONPATH=python python3 apps/grident_validate.py --preamble-only
+PYTHONPATH=python python3 apps/grident_validate.py \
+  --fixtures python/tests/fixtures/common_modes/
+```
+
+Preamble checks run without external dependencies. Signal-layer checks require
+[radio-modulation-validator](https://github.com/Supermagnum/radio-modulation-validator)
+on `PATH` or at `../radio-modulation-validator/`. Generated reports go to
+`docs/validation-report.md` (gitignored; see [validation-report-example.md](validation-report-example.md)).
+
+Details: [rmv-integration.md](rmv-integration.md)
 
 ## Plot parameters
 

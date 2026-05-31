@@ -1,6 +1,6 @@
 # Test Results
 
-Generated: 2026-05-27 21:19:42 UTC
+Generated: 2026-05-31 17:37:05 UTC
 
 **Overall:** PASS (python exit 0, GR4 ctest exit 0)
 
@@ -24,6 +24,42 @@ test_generated_iq (test_grident.IqRoundtripTests.test_generated_iq) ... ok
 test_meson_unit_tests (test_grident.MesonTests.test_meson_unit_tests) ... ok
 test_field_pack (test_grident.PreambleTests.test_field_pack) ... ok
 test_preamble_round_trip (test_grident.PreambleTests.test_preamble_round_trip) ... ok
+test_detect_cpu_bad_onnx (test_rmv_integration.test_backend.BackendTests.test_detect_cpu_bad_onnx) ... CPU classifier failed to initialise: [ONNXRuntimeError] : 7 : INVALID_PROTOBUF : Load model from /tmp/tmph73a4zjg/family_classifier.onnx failed:Protobuf parsing failed.
+ok
+test_detect_cpu_missing_models (test_rmv_integration.test_backend.BackendTests.test_detect_cpu_missing_models) ... ok
+test_detect_npu_no_sysfs (test_rmv_integration.test_backend.BackendTests.test_detect_npu_no_sysfs) ... ok
+test_detect_npu_sdk_missing (test_rmv_integration.test_backend.BackendTests.test_detect_npu_sdk_missing) ... ok
+test_select_backend_falls_back_to_cpu (test_rmv_integration.test_backend.BackendTests.test_select_backend_falls_back_to_cpu) ... ok
+test_select_backend_none (test_rmv_integration.test_backend.BackendTests.test_select_backend_none) ... No classifier backend available. Signal identification will use preamble only.
+ok
+test_select_backend_prefers_npu (test_rmv_integration.test_backend.BackendTests.test_select_backend_prefers_npu) ... ok
+test_classifier_timeout_discarded (test_rmv_integration.test_identify.IdentifyTests.test_classifier_timeout_discarded) ... Classifier timeout after 500 ms - result discarded for this transmission
+ok
+test_mismatch_logged_routes_on_preamble (test_rmv_integration.test_identify.IdentifyTests.test_mismatch_logged_routes_on_preamble) ... Preamble/classifier mismatch: preamble mode_id=100 (FSK) but classifier says FM (0.95). Routing on preamble.
+ok
+test_no_preamble_classifier_runs (test_rmv_integration.test_identify.IdentifyTests.test_no_preamble_classifier_runs) ... ok
+test_no_preamble_no_classifier (test_rmv_integration.test_identify.IdentifyTests.test_no_preamble_no_classifier) ... ok
+test_preamble_routes_immediately (test_rmv_integration.test_identify.IdentifyTests.test_preamble_routes_immediately) ... ok
+test_zmq_status_published (test_rmv_integration.test_identify.IdentifyTests.test_zmq_status_published) ... ok
+test_all_mapped_modes_have_valid_family (test_rmv_integration.test_mode_map.ModeMapTests.test_all_mapped_modes_have_valid_family) ... ok
+test_analog_modes_map_to_am_or_fm (test_rmv_integration.test_mode_map.ModeMapTests.test_analog_modes_map_to_am_or_fm) ... ok
+test_digital_modes_map_to_fsk_or_psk (test_rmv_integration.test_mode_map.ModeMapTests.test_digital_modes_map_to_fsk_or_psk) ... ok
+test_mode_21_aviation_override (test_rmv_integration.test_mode_map.ModeMapTests.test_mode_21_aviation_override) ... ok
+test_no_excluded_mode_in_map (test_rmv_integration.test_mode_map.ModeMapTests.test_no_excluded_mode_in_map) ... ok
+test_sleipnir_maps_to_custom (test_rmv_integration.test_mode_map.ModeMapTests.test_sleipnir_maps_to_custom) ... ok
+test_1_bit_error_corrected (test_rmv_integration.test_preamble_check.PreambleCheckTests.test_1_bit_error_corrected) ... ok
+test_2_bit_errors_corrected (test_rmv_integration.test_preamble_check.PreambleCheckTests.test_2_bit_errors_corrected) ... ok
+test_3_bit_errors_corrected (test_rmv_integration.test_preamble_check.PreambleCheckTests.test_3_bit_errors_corrected) ... ok
+test_4_bit_errors_fail (test_rmv_integration.test_preamble_check.PreambleCheckTests.test_4_bit_errors_fail) ... ok
+test_fixture_codeword_mode_020 (test_rmv_integration.test_preamble_check.PreambleCheckTests.test_fixture_codeword_mode_020) ... ok
+test_golay_roundtrip_mode_100 (test_rmv_integration.test_preamble_check.PreambleCheckTests.test_golay_roundtrip_mode_100) ... ok
+test_golay_roundtrip_mode_20 (test_rmv_integration.test_preamble_check.PreambleCheckTests.test_golay_roundtrip_mode_20) ... ok
+test_golay_roundtrip_mode_300 (test_rmv_integration.test_preamble_check.PreambleCheckTests.test_golay_roundtrip_mode_300) ... ok
+test_validate_excluded_mode (test_rmv_integration.test_validator.ValidatorTests.test_validate_excluded_mode) ... ok
+test_validate_handles_rmv_error (test_rmv_integration.test_validator.ValidatorTests.test_validate_handles_rmv_error) ... ok
+test_validate_parses_rmv_json (test_rmv_integration.test_validator.ValidatorTests.test_validate_parses_rmv_json) ... ok
+test_validate_unmapped_mode (test_rmv_integration.test_validator.ValidatorTests.test_validate_unmapped_mode) ... ok
+test_validate_without_rmv (test_rmv_integration.test_validator.ValidatorTests.test_validate_without_rmv) ... ok
 test_assigned_mode_count (test_sync_metadata.ExtendedProfileTests.test_assigned_mode_count) ... ok
 test_ax25_mode (test_sync_metadata.ExtendedProfileTests.test_ax25_mode) ... ok
 test_dmr_mode (test_sync_metadata.ExtendedProfileTests.test_dmr_mode) ... ok
@@ -42,7 +78,7 @@ test_linht_pmt (test_tx_control.TestTxControl.test_linht_pmt) ... ok
 test_plain_on_off (test_tx_control.TestTxControl.test_plain_on_off) ... ok
 
 ----------------------------------------------------------------------
-Ran 33 tests in 152.075s
+Ran 65 tests in 156.228s
 
 OK (skipped=1)
 ```
@@ -55,13 +91,13 @@ Test project /mnt/2e9a1e9f-2097-408c-ab9a-a01b32f11d28/github-projects/gr-ident/
     Start 1: grident_registry
 1/3 Test #1: grident_registry .................   Passed    0.02 sec
     Start 2: grident_receive_flowgraph
-2/3 Test #2: grident_receive_flowgraph ........   Passed    0.23 sec
+2/3 Test #2: grident_receive_flowgraph ........   Passed    0.24 sec
     Start 3: grident_ptt_zmq_smoke
-3/3 Test #3: grident_ptt_zmq_smoke ............   Passed   12.13 sec
+3/3 Test #3: grident_ptt_zmq_smoke ............   Passed   12.12 sec
 
 100% tests passed, 0 tests failed out of 3
 
-Total Test time (real) =  12.38 sec
+Total Test time (real) =  12.39 sec
 ```
 
 ## Per-Mode IQ Roundtrip
