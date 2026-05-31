@@ -11,18 +11,9 @@
 
 - [Overview](#overview)
 - [Documentation](#documentation)
-  - [Documentation index](docs/README.md)
-  - [Test results](docs/test-results.md)
-  - [Modulation captures](docs/modulation-captures.md)
-  - [Code chart](docs/codechart.md)
-  - [Sync sequences](docs/sync-sequences.md)
-  - [Experimental mode registry](docs/experimental-mode-registry.md)
-  - [ZeroMQ protocol](docs/zeromq-protocol.md)
-  - [Gateway integration (VoIP + ZMQ + gr-linux-crypto)](docs/gateway-integration.md)
-  - [radio-modulation-validator integration](docs/rmv-integration.md)
 - [Design Goals](#design-goals)
-  - [Preamble Structure](#preamble-structure)
-  - [Modulation Profiles](#modulation-profiles)
+- [Preamble Structure](#preamble-structure)
+- [Modulation Profiles](#modulation-profiles)
 - [Golay(24,12) Protection](#golay2412-protection)
 - [12-Bit Field Layout](#12-bit-field-layout)
 - [Mode ID Table](#mode-id-table)
@@ -33,9 +24,16 @@
   - [Satellite Modes](#satellite-modes)
   - [Experimental Range](#experimental-range)
 - [Receiver Behavior](#receiver-behavior)
+  - [Two-Layer Identification](#two-layer-identification)
+  - [Classifier Fallback Hierarchy](#classifier-fallback-hierarchy)
 - [Interaction with LDPC](#interaction-with-ldpc)
 - [Security Integration — gr-linux-crypto](#security-integration--gr-linux-crypto)
 - [GNU Radio 4.x OOT module](#gnu-radio-4x-oot-module)
+- [IQ Validation — radio-modulation-validator](#iq-validation--radio-modulation-validator)
+  - [Two-Layer Validation](#two-layer-validation)
+  - [Neural Network Classifiers](#neural-network-classifiers)
+  - [INT8 Quantisation and NPU Deployment](#int8-quantisation-and-npu-deployment)
+  - [Classifier Fallback at Runtime](#classifier-fallback-at-runtime)
 - [Future Work](#future-work)
 - [License](#license)
 
@@ -57,6 +55,12 @@ The preamble is self-contained, protected by forward error correction, and is en
 transparent to any downstream LDPC decoder. It is designed to be decodable on modest
 CPU hardware with no GPU requirement.
 
+For signals that carry a gr-ident preamble, identification is deterministic and
+microsecond-latency. For signals without a preamble (conventional legacy radios,
+interference), an optional neural network classifier can identify the modulation family
+and order independently. The two layers are complementary — the preamble controls routing,
+the classifier verifies it.
+
 ---
 
 ## Documentation
@@ -72,6 +76,7 @@ Generated test documentation, IQ capture details, waterfall plots, and regressio
 - [docs/zeromq-protocol.md](docs/zeromq-protocol.md) — LinHT and gr-ident ZeroMQ wire formats and mode examples
 - [docs/gateway-integration.md](docs/gateway-integration.md) — VoIP gateway adapters, ZeroMQ, gr-linux-crypto
 - [docs/rmv-integration.md](docs/rmv-integration.md) — two-layer IQ validation via radio-modulation-validator
+- [docs/npu-deployment.md](docs/npu-deployment.md) — INT8 quantisation and SpacemiT NPU deployment
 - [apps/flowgraphs/zmq-distributed-demo.md](apps/flowgraphs/zmq-distributed-demo.md) — ZeroMQ distributed edges
 
 Regenerate with:
@@ -91,6 +96,8 @@ PYTHONPATH=python python3 python/grident/generate_docs.py
 - Support up to 500 assigned modes with room for growth
 - Remain simple enough to implement in GNU Radio 4.x without specialist hardware
 - Carry minimal but useful metadata alongside the mode ID
+- Complement (not replace) neural network signal classification for signals
+  without a preamble
 
 ---
 
@@ -489,7 +496,7 @@ bridges decoded mode IDs and audio/PTT to the VoIP stack. See
 
 | Mode ID | Hex | Description | gr-ident RF profile (typical) | Gateway software |
 |---:|---|---|---|---|
-| 110 | 0x06E | EchoLink — node, conference, or repeater link | `nfm_125_4800` (test vector in repo) | [SvxLink](https://github.com/sm0svx/svxlink) |
+| 110 | 0x06E | EchoLink — node, conference, or repeater link | `nfm_125_4800` | [SvxLink](https://github.com/sm0svx/svxlink) |
 | 111 | 0x06F | IRLP — Internet Radio Linking Project | Operator-defined (often NFM) | IRLP node |
 | 112 | 0x070 | AllStar Link — Asterisk / app_rpt | Operator-defined (often NFM) | [ASL3](https://github.com/allstarlink/asl3) |
 | 113 | 0x071 | Mumble — open-source VoIP (e.g. KA-Node) | Operator-defined | Mumble / [QRadioLink](https://qradiolink.org/) |
@@ -629,25 +636,104 @@ within this range are recorded in the public
 
 ## Receiver Behavior
 
-A conforming receiver should follow this decision tree upon preamble detection:
+### Two-Layer Identification
+
+A conforming receiver combines two independent identification methods. The preamble
+controls routing — the classifier verifies it. Neither depends on the other.
+
+```
+Signal received
+        │
+        ▼  (microseconds — always runs)
+Sync sequence detected
+        │
+        ▼
+Golay(24,12) decode
+        │
+   ─────┴─────
+   │           │
+pass        > 3 bit errors
+   │           │
+   ▼           ▼
+Extract     Discard / squelch
+bit 11          │
+(A/D flag)      └──► classifier-only path (if available)
+   │
+   ▼
+Route to analog or digital demodulator bank  ← immediate, never blocked
+   │
+   ▼  (milliseconds — advisory, asynchronous)
+Extract mode_id (bits 0–8)
+Extract encrypted flag (bit 10)
+        │
+        ▼
+Neural network classifier cross-checks signal
+  → agrees: high confidence, proceed normally
+  → disagrees: log discrepancy, route on preamble
+  → classifier unavailable: preamble routing only
+```
+
+For a conforming receiver the minimum viable action is **step 5 alone** — the
+analog/digital routing decision from bit 11. Steps 6–9 provide full mode
+discrimination. The classifier adds independent verification but is never required.
+
+The decision tree in full:
 
 1. Detect synchronization sequence via correlation (modulation-specific)
 2. Receive 24 preamble bits
 3. Apply Golay(24,12) decoding and error correction
 4. If decoding fails (more than 3 bit errors): fall back to squelch / discard
-5. Extract bit 11 (Analog / Digital flag)
+5. Extract bit 11 (Analog / Digital flag) — route immediately
    - If 0: route to analog demodulator bank
    - If 1: route to digital demodulator bank
 6. Extract bits 0–8 (Mode ID)
 7. Look up Mode ID in local mode table
 8. If mode is known: activate the corresponding demodulator
 9. If mode is unknown: optionally alert user; do not pass noise to audio output
-10. Extract bit 10 (Encrypted / Open flag) and handle accordingly
+10. Extract bit 10 (Encrypted / Open flag) — invoke gr-linux-crypto if set
 11. Pass remaining frame data to the downstream decoder (LDPC or other)
+12. Classifier cross-check result (asynchronous, advisory):
+    - Log result to audit trail
+    - If mismatch: flag for operator review; do not interrupt audio in progress
+    - Apply corrected routing to the next transmission if mismatch is confirmed
 
-Step 5 alone — the analog/digital routing decision — is the minimum viable action.
-Steps 6–9 provide full mode discrimination. A receiver may implement only step 5
-and still provide useful behavior (no digital noise on analog audio output).
+### Classifier Fallback Hierarchy
+
+The neural network classifier operates at one of four levels depending on
+available hardware. The system degrades gracefully at every level. The repeater
+works correctly at all four levels — the classifier is always advisory, never
+a hard dependency.
+
+| Mode | Preamble | Classifier | Backend | Latency |
+|---|---|---|---|---|
+| **FULL** | ✓ | ✓ | NPU (SpacemiT A100) | ~15 µs per chunk |
+| **DEGRADED** | ✓ | ✓ | CPU INT8 ONNX | ~5 ms per chunk |
+| **MINIMAL** | ✓ | ✗ | None | Preamble only |
+| **FALLBACK** | ✗ | ✗ | None | Default mode policy |
+
+**Detection order at startup** (`python/grident/rmv_integration/backend.py`):
+
+1. Check for SpacemiT NPU kernel driver (`/sys/class/misc/spacemit-npu`)
+2. Attempt to load SpacemiT NPU runtime library (`spacemit_npu`)
+3. If NPU unavailable: check for INT8 ONNX models (`*_int8.onnx`) and onnxruntime
+4. If CPU classifier unavailable: run preamble-only (MINIMAL mode)
+5. Publish `identification_mode` on ZeroMQ status socket at startup and on any change
+
+**Classifier timeout policy:** if CPU inference takes longer than 100 ms on any
+single chunk, the result is discarded for that transmission. If timeouts exceed
+3 in any 60-second window, the CPU classifier is automatically disabled and the
+system falls back to MINIMAL mode. The mode change is published on the ZMQ
+status socket.
+
+**Seven rules that must never be violated:**
+
+1. Preamble controls routing. Classifier verifies routing.
+2. Never wait for the classifier before routing a signal.
+3. If classifier disagrees with preamble, route on preamble and log the discrepancy.
+4. Never interrupt audio output based on a classifier result.
+5. Apply corrected routing only to the next transmission.
+6. Publish `identification_mode` on ZMQ status at startup and on any mode change.
+7. The repeater works correctly in all four modes: FULL, DEGRADED, MINIMAL, FALLBACK.
 
 ---
 
@@ -701,8 +787,6 @@ it has no key for, rather than producing noise or a failed decode.
 
 ### Supported Cryptographic Operations
 
-The following operations from gr-linux-crypto are relevant to encrypted preamble payloads:
-
 | Operation | Algorithm | Use |
 |---|---|---|
 | Payload encryption | AES-256-GCM | Authenticated encryption of frame payload |
@@ -723,8 +807,6 @@ The **Encrypted / Open** flag and associated gr-linux-crypto support are provide
 - Jurisdictions and frequency allocations where encryption is lawfully permitted
 
 Users are solely responsible for ensuring their use complies with applicable regulations.
-Setting bit 10 = 1 on amateur radio frequencies where encryption is prohibited is the
-user's responsibility to avoid. The specification itself imposes no restriction.
 
 ### Digital Signatures Without Encryption
 
@@ -736,10 +818,8 @@ gr-linux-crypto for **digital signatures**. In this case:
   end of the transmission
 - Receivers with signature verification capability can verify callsign authenticity
 - Receivers without signature support simply ignore the trailing signature frame
-- This provides progressive enhancement: authentication without breaking compatibility
 
-This pattern follows the backward-compatible signature-at-end-of-transmission design
-described in the gr-linux-crypto signing and verification documentation.
+This provides progressive enhancement: authentication without breaking compatibility.
 
 ---
 
@@ -765,26 +845,132 @@ into `PreambleOnPtt`). The default TX control profile matches the
 [LinHT Handheld Transceiver](https://github.com/M17-Project/LinHT-utils) PMT `SOT`/`EOT`
 messages on `ipc:///tmp/ptt_msg`; use `profile=grident` for standalone multipart JSON/text.
 See [`docs/zeromq-protocol.md`](docs/zeromq-protocol.md) for wire formats and source references.
-See [`apps/flowgraphs/zmq-distributed-demo.md`](apps/flowgraphs/zmq-distributed-demo.md).
 
 IQ-level detection without GNU Radio remains in `python/grident/iq_decode.py` and
 `blocklib/grident/lib/preamble_detect.cc`.
 
-### IQ validation (radio-modulation-validator)
+---
 
-Committed IQ test vectors can be checked in two layers with `grident-validate`:
+## IQ Validation — radio-modulation-validator
 
-1. **Preamble** — Golay(24,12) encode/decode roundtrip against fixture codewords (no external deps)
-2. **Signal** — optional classification via [radio-modulation-validator](https://github.com/Supermagnum/radio-modulation-validator) (rmv)
+The `python/grident/rmv_integration/` subsystem connects gr-ident to
+[radio-modulation-validator](https://github.com/Supermagnum/radio-modulation-validator) (rmv),
+an independent neural network classifier trained on public RF datasets. This enables
+two-layer validation of committed IQ test vectors and live signal cross-checking at runtime.
+
+### Two-Layer Validation
+
+Committed IQ test vectors can be checked with `grident-validate`:
 
 ```bash
+# Preamble only — no external dependencies
 PYTHONPATH=python python3 apps/grident_validate.py --preamble-only
+
+# Full two-layer validation — requires rmv installed
 PYTHONPATH=python python3 apps/grident_validate.py \
   --fixtures python/tests/fixtures/common_modes/
 ```
 
-If rmv is not installed, preamble checks still run and signal validation is skipped.
-See [`docs/rmv-integration.md`](docs/rmv-integration.md) and [`TESTING.md`](TESTING.md).
+**Layer 1 — Preamble (Golay roundtrip):** verifies the gr-ident specification itself.
+Golay(24,12) encode → decode, field extraction, comparison against fixture codewords,
+and error-injection tests (1–3 bit errors corrected, 4+ detected). Runs with no
+external dependencies.
+
+**Layer 2 — Signal (rmv classifier):** verifies that the IQ test vectors contain the
+modulation claimed by each mode ID. The `.cf32` fixture file for each mode is classified
+by rmv and the result is compared against the expected modulation family (FM/FSK/PSK/AM/QAM)
+and order (NBFM_25/DMR/M17/etc.).
+
+If rmv is not installed, preamble checks still run and signal validation is skipped
+with a clear warning. See [`docs/rmv-integration.md`](docs/rmv-integration.md) and
+[`TESTING.md`](TESTING.md).
+
+### Neural Network Classifiers
+
+rmv provides two ResidualCNN classifiers trained on public RF datasets:
+
+| Classifier | Classes | Accuracy | Training data |
+|---|---|---|---|
+| Family | 6 (FM/FSK/PSK/QAM/AM/PAM) | 91.84% | RadioML 2016.10A + CSPB.ML.2018R2 + synthetic |
+| Order | 43 (NBFM/DMR/M17/YSF/NXDN/dPMR/…) | 70.48% | Same + protocol-accurate 4FSK synthetic |
+
+The 43 order classes include protocol-specific modes generated from published standards:
+
+| Mode | Symbol rate | Deviation | Pulse shaping | Standard |
+|---|---|---|---|---|
+| DMR | 4800 baud | ±1944 Hz | RC α=0.2 | ETSI TS 102 361-1 |
+| M17 | 4800 baud | ±2400 Hz | RRC β=0.5 | M17 Project spec v1.0 |
+| YSF | 4800 baud | ±2400 Hz | Gaussian BT=0.5 | TIA-102 / Yaesu |
+| NXDN | 2400 baud | ±1050 Hz | RC α=0.2 | ICOM/Kenwood |
+| dPMR | 2400 baud | ±1050 Hz | RC α=0.2 | ETSI TS 102 490 |
+
+Training data is generated independently from gr-ident blocks — only GNU Radio
+built-ins and numpy/scipy are used, keeping the validation boundary clean.
+
+### INT8 Quantisation and NPU Deployment
+
+The classifiers are available in three formats:
+
+| Format | Size | Inference latency | Use |
+|---|---|---|---|
+| FP32 ONNX (`*.onnx`) | 2.7 MB | ~15 ms CPU | Reference, full accuracy |
+| INT8 ONNX (`*_int8.onnx`) | ~700 KB | ~5 ms CPU | Default CPU deployment |
+| NPU binary (`*.nb`) | ~700 KB | ~15 µs NPU | SpacemiT K3 A100 cores |
+
+INT8 quantisation accuracy:
+
+| Model | FP32 vs INT8 agreement | Method |
+|---|---|---|
+| family_classifier | 99.90% | Static QDQ |
+| order_classifier | 99.61% | Dynamic INT8 fallback |
+
+On the SpacemiT K3 with A100 NPU cores (60 TOPS INT8, RVV 1.0):
+
+- Both classifiers in sequence: ~30 µs total
+- One 1024-sample chunk at 48 kHz = 21.3 ms of signal
+- The classifier runs **710× faster than real time**
+
+To generate NPU binaries on the K3 (requires SpacemiT NPU SDK):
+
+```bash
+rmv export-quantised --synthetic datasets/synthetic/synthetic.npz
+rmv export-npu --calibration datasets/synthetic/synthetic.npz
+```
+
+See [`docs/npu-deployment.md`](docs/npu-deployment.md) for full deployment instructions
+including cross-compilation notes.
+
+### Classifier Fallback at Runtime
+
+The `python/grident/rmv_integration/` modules implement the live receive path for
+repeater deployments. At startup, the system detects the best available backend and
+publishes the result on the ZeroMQ status socket:
+
+```json
+{
+  "classifier_backend": "npu",
+  "gr_ident_available": true,
+  "identification_mode": "full",
+  "rmv_available": true,
+  "classifier_timeout_ms": 10
+}
+```
+
+The four operating modes and fallback rules are described in full under
+[Classifier Fallback Hierarchy](#classifier-fallback-hierarchy) above.
+
+Runtime modules:
+
+| Module | Purpose |
+|---|---|
+| `backend.py` | NPU and CPU detection at startup |
+| `runtime.py` | `RuntimeStatus`, `initialise_runtime()`, ZMQ status |
+| `identify.py` | Async live identification with timeout and cross-check |
+| `validator.py` | Offline validation against rmv (used by `grident-validate`) |
+| `mode_map.py` | Mode ID → rmv family/order mapping |
+| `preamble_check.py` | Golay roundtrip checks |
+| `report.py` | Markdown report generator |
+| `cli.py` | `grident-validate` command |
 
 ---
 
@@ -796,6 +982,9 @@ See [`docs/rmv-integration.md`](docs/rmv-integration.md) and [`TESTING.md`](TEST
 - End-to-end gr-linux-crypto demo flowgraph (design reference:
   [`apps/flowgraphs/gr-linux-crypto-demo.md`](apps/flowgraphs/gr-linux-crypto-demo.md))
 - Formal assignment of mode IDs for additional regional and emerging modes
+- P25-specific 4FSK synthetic training data (9600 baud CQPSK) to improve P25 order-level classification
+- SpacemiT NPU `.nb` model files once SDK is available on the development machine
+- Static QDQ quantisation for the order classifier (currently using dynamic INT8 fallback)
 
 ---
 
