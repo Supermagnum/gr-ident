@@ -823,10 +823,10 @@ a hard dependency.
 
 | Mode | Preamble | Classifier | Backend | Latency |
 |---|---|---|---|---|
-| **FULL** | ✓ | ✓ | NPU (SpacemiT A100) | ~15 µs per chunk |
-| **DEGRADED** | ✓ | ✓ | CPU INT8 ONNX | ~5 ms per chunk |
-| **MINIMAL** | ✓ | ✗ | None | Preamble only |
-| **FALLBACK** | ✗ | ✗ | None | Default mode policy |
+| **FULL** | yes | yes | NPU (SpacemiT A100) | ~15 µs per chunk |
+| **DEGRADED** | yes | yes | CPU INT8 ONNX | ~5 ms per chunk |
+| **MINIMAL** | yes | no | None | Preamble only |
+| **FALLBACK** | no | no | None | Default mode policy |
 
 **Detection order at startup** (`python/grident/rmv_integration/backend.py`):
 
