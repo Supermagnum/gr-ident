@@ -35,6 +35,7 @@ MODE_TO_RMV: dict[int, dict[str, str]] = {
     # Data / packet
     150: {"family": "FSK", "order": "CPFSK"},
     151: {"family": "FSK", "order": "CPFSK"},
+    155: {"family": "FSK", "order": "2FSK"},
     158: {"family": "PSK", "order": "BPSK"},
     159: {"family": "FSK", "order": "2FSK"},
     # Experimental

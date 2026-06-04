@@ -13,6 +13,7 @@ Generated test documentation for gr-ident modulation profiles and IQ captures.
 - [Validation report example](validation-report-example.md)
 - [Test results](test-results.md)
 - [Code chart](codechart.md)
+- [GR4 port diagrams (TX/RX, Mermaid)](port-diagrams.md)
 - [Sync sequences (normative)](sync-sequences.md)
 - [Experimental mode registry](experimental-mode-registry.md)
 

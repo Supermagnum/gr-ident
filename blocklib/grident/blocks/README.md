@@ -74,6 +74,7 @@ Use these from custom GR4 blocks or standalone tools. Python reference:
 
 ## Reference flowgraphs
 
+- [GR4 port diagrams (TX/RX, Mermaid)](../../docs/port-diagrams.md)
 - [gr-linux-crypto integration demo](../../apps/flowgraphs/gr-linux-crypto-demo.md)
 - [ZeroMQ distributed demo](../../apps/flowgraphs/zmq-distributed-demo.md)
 

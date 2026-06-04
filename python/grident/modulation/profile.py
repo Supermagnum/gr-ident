@@ -16,7 +16,7 @@ from ..preamble import (
     encode_preamble,
 )
 from ..metadata_field import MetadataField, decode_metadata, encode_metadata
-from . import ax25, fsk, psk, rtty
+from . import ax25, cats, fsk, psk, rtty
 
 ModulationKind = Literal["cpfsk4", "bpsk", "fsk2"]
 
@@ -107,7 +107,12 @@ class ModulationProfile:
 
         if self.kind == "fsk2":
             backend = self._fsk2_backend()
-            mark = backend.AX25_MARK_HZ if backend is ax25 else rtty.RTTY_MARK_HZ
+            if backend is ax25:
+                mark = backend.AX25_MARK_HZ
+            elif backend is cats:
+                mark = backend.CATS_MARK_HZ
+            else:
+                mark = rtty.RTTY_MARK_HZ
             for _ in range(extend):
                 phase += 2.0 * math.pi * mark / self.sample_rate
                 out.append(cmath.exp(1j * phase))
@@ -120,6 +125,8 @@ class ModulationProfile:
     def _fsk2_backend(self):
         if self.symbol_rate == ax25.AX25_BAUD:
             return ax25
+        if self.symbol_rate == cats.CATS_BAUD:
+            return cats
         return rtty
 
     def _preamble_bit_count(self, field: PreambleField) -> int:
@@ -182,9 +189,16 @@ class ModulationProfile:
             meta["deviations_hz"] = list(self.deviations)
         if self.kind == "fsk2":
             backend = self._fsk2_backend()
-            meta["shift_hz"] = backend.AX25_MARK_HZ - backend.AX25_SPACE_HZ if backend is ax25 else rtty.RTTY_MARK_HZ - rtty.RTTY_SPACE_HZ
-            meta["mark_hz"] = backend.AX25_MARK_HZ if backend is ax25 else rtty.RTTY_MARK_HZ
-            meta["space_hz"] = backend.AX25_SPACE_HZ if backend is ax25 else rtty.RTTY_SPACE_HZ
+            if backend is ax25:
+                meta["mark_hz"] = backend.AX25_MARK_HZ
+                meta["space_hz"] = backend.AX25_SPACE_HZ
+            elif backend is cats:
+                meta["mark_hz"] = backend.CATS_MARK_HZ
+                meta["space_hz"] = backend.CATS_SPACE_HZ
+            else:
+                meta["mark_hz"] = rtty.RTTY_MARK_HZ
+                meta["space_hz"] = rtty.RTTY_SPACE_HZ
+            meta["shift_hz"] = meta["mark_hz"] - meta["space_hz"]
         meta["num_samples"] = signal.size
         meta["samples_per_symbol"] = self.samples_per_symbol
         return signal, meta

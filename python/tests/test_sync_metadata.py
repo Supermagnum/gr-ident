@@ -20,10 +20,12 @@ from grident.metadata_field import (
 )
 from grident.modulation.registry import (
     AX25_1200,
+    CATS_9600,
     DMR_4800,
     PROFILE_BY_MODE_ID,
     get_profile_for_mode,
 )
+from grident.sync_sequences import SYNC_CATS
 from grident.preamble import PreambleField, decode_preamble, encode_preamble, pack_field, unpack_field
 from grident.sync_sequences import ALL_SYNC_SEQUENCES, SYNC_BY_NAME, SYNC_NFM
 
@@ -73,6 +75,11 @@ class ExtendedProfileTests(unittest.TestCase):
     def test_ax25_mode(self) -> None:
         profile = get_profile_for_mode(150)
         self.assertEqual(profile.name, AX25_1200.name)
+
+    def test_cats_mode(self) -> None:
+        profile = get_profile_for_mode(155)
+        self.assertEqual(profile.name, CATS_9600.name)
+        self.assertEqual(profile.sync_bits, SYNC_CATS.bits)
 
 
 class MetadataPreambleAirTests(unittest.TestCase):

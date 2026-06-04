@@ -95,6 +95,12 @@ SYNC_AX25 = SyncSequence(
     reference="gr-ident assigned (Bell 202 AFSK 1200 baud packet)",
 )
 
+SYNC_CATS = SyncSequence(
+    name="sync_cats",
+    bits=(1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1),
+    reference="gr-ident assigned (CATS 9600 baud raw FSK packet)",
+)
+
 ALL_SYNC_SEQUENCES: tuple[SyncSequence, ...] = (
     SYNC_NFM,
     SYNC_C4FM,
@@ -106,6 +112,7 @@ ALL_SYNC_SEQUENCES: tuple[SyncSequence, ...] = (
     SYNC_PSK31,
     SYNC_RTTY,
     SYNC_AX25,
+    SYNC_CATS,
 )
 
 SYNC_BY_NAME = {seq.name: seq for seq in ALL_SYNC_SEQUENCES}

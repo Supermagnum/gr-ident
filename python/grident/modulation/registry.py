@@ -7,9 +7,11 @@ from .profile import ModulationProfile
 from .psk import PSK31_BAUD
 from .rtty import RTTY_BAUD
 from .ax25 import AX25_BAUD
+from .cats import CATS_BAUD
 from .squelch import ctcss_overlay, dcs_overlay
 from ..sync_sequences import (
     SYNC_AX25,
+    SYNC_CATS,
     SYNC_C4FM,
     SYNC_DMR,
     SYNC_DPMR,
@@ -136,6 +138,16 @@ AX25_1200 = ModulationProfile(
     symbol_rate=AX25_BAUD,
 )
 
+CATS_9600 = ModulationProfile(
+    name="cats_9600",
+    description="CATS raw FSK preamble burst at 9600 baud",
+    reference="CATS Communication And Telemetry System (https://cats.radio/)",
+    sample_rate=DEFAULT_SAMPLE_RATE,
+    sync_bits=SYNC_CATS.bits,
+    kind="fsk2",
+    symbol_rate=CATS_BAUD,
+)
+
 ALL_PROFILES: tuple[ModulationProfile, ...] = (
     NFM_125_4800,
     NFM_125_CTCSS_4800,
@@ -149,6 +161,7 @@ ALL_PROFILES: tuple[ModulationProfile, ...] = (
     PSK31_3125,
     RTTY_50,
     AX25_1200,
+    CATS_9600,
 )
 
 PROFILE_BY_NAME = {profile.name: profile for profile in ALL_PROFILES}
@@ -189,6 +202,7 @@ PROFILE_BY_MODE_ID: dict[int, ModulationProfile] = {
     152: PSK31_3125,
     153: NFM_125_4800,
     154: PSK31_3125,
+    155: CATS_9600,
     158: PSK31_3125,
     159: RTTY_50,
 }

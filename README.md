@@ -188,6 +188,7 @@ Generated test documentation, IQ capture details, waterfall plots, and regressio
 - [docs/test-results.md](docs/test-results.md) — unit test log and IQ roundtrip matrix
 - [docs/modulation-captures.md](docs/modulation-captures.md) — per-mode air interfaces, capture durations, and spectrograms
 - [docs/codechart.md](docs/codechart.md) — code and test function map (debug reference)
+- [docs/port-diagrams.md](docs/port-diagrams.md) — GNU Radio 4 TX/RX port diagrams (Mermaid)
 - [blocklib/grident/blocks/README.md](blocklib/grident/blocks/README.md) — GNU Radio 4.x block build
 - [TESTING.md](TESTING.md) — tester onboarding and smoke tests
 - [docs/zeromq-protocol.md](docs/zeromq-protocol.md) — LinHT and gr-ident ZeroMQ wire formats and mode examples
@@ -383,6 +384,23 @@ Used by **AX.25** (mode 150) and **APRS** (mode 151).
 | Modulation | Bell 202 AFSK | AX.25 amateur packet |
 | Symbol rate | 1200 baud | |
 | Sync | 16-bit sequence | gr-ident assigned (see [Sync Sequences](docs/sync-sequences.md#sync_ax25)) |
+
+### Profile: `cats_9600`
+
+Used by **CATS** (mode 155). CATS is a packet/telemetry standard (position beacons,
+FELINET network) intended as a modern alternative to APRS; see
+[CATS — Communication And Telemetry System](https://cats.radio/).
+
+| Parameter | Value | Reference |
+|---|---|---|
+| Modulation | Raw 2-FSK (baseband test vectors) | [CATS standard](https://cats.radio/) |
+| Symbol rate | 9600 baud | CATS default air rate |
+| Frequency shift | 4800 Hz total (mark/space +/-2400 Hz) | gr-ident test-vector placeholder |
+| Sync | 16-bit sequence | gr-ident assigned (see [Sync Sequences](docs/sync-sequences.md#sync_cats)) |
+
+CATS payloads use LDPC forward error correction on the air; the gr-ident preamble is a
+separate Golay-protected burst before the CATS frame. The CATS standard is still
+work-in-progress and may change without backward compatibility until it is locked down.
 
 Mode ID to profile mapping for assigned modes is implemented in
 `python/grident/modulation/registry.py`.
@@ -658,6 +676,7 @@ breaking protocol timing.
 | 152 | 0x098 | VARA HF |
 | 153 | 0x099 | VARA FM |
 | 154 | 0x09A | Winlink |
+| 155 | 0x09B | CATS — Communication And Telemetry System |
 | 158 | 0x09E | PSK31 |
 | 159 | 0x09F | RTTY — Radioteletype |
 

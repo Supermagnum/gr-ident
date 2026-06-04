@@ -1,6 +1,6 @@
 # Test Results
 
-Generated: 2026-05-31 17:37:05 UTC
+Generated: 2026-06-04 12:09:45 UTC
 
 **Overall:** PASS (python exit 0, GR4 ctest exit 0)
 
@@ -24,7 +24,7 @@ test_generated_iq (test_grident.IqRoundtripTests.test_generated_iq) ... ok
 test_meson_unit_tests (test_grident.MesonTests.test_meson_unit_tests) ... ok
 test_field_pack (test_grident.PreambleTests.test_field_pack) ... ok
 test_preamble_round_trip (test_grident.PreambleTests.test_preamble_round_trip) ... ok
-test_detect_cpu_bad_onnx (test_rmv_integration.test_backend.BackendTests.test_detect_cpu_bad_onnx) ... CPU classifier failed to initialise: [ONNXRuntimeError] : 7 : INVALID_PROTOBUF : Load model from /tmp/tmph73a4zjg/family_classifier.onnx failed:Protobuf parsing failed.
+test_detect_cpu_bad_onnx (test_rmv_integration.test_backend.BackendTests.test_detect_cpu_bad_onnx) ... CPU classifier failed to initialise: [ONNXRuntimeError] : 7 : INVALID_PROTOBUF : Load model from /tmp/tmpsyps60vk/family_classifier.onnx failed:Protobuf parsing failed.
 ok
 test_detect_cpu_missing_models (test_rmv_integration.test_backend.BackendTests.test_detect_cpu_missing_models) ... ok
 test_detect_npu_no_sysfs (test_rmv_integration.test_backend.BackendTests.test_detect_npu_no_sysfs) ... ok
@@ -62,6 +62,7 @@ test_validate_unmapped_mode (test_rmv_integration.test_validator.ValidatorTests.
 test_validate_without_rmv (test_rmv_integration.test_validator.ValidatorTests.test_validate_without_rmv) ... ok
 test_assigned_mode_count (test_sync_metadata.ExtendedProfileTests.test_assigned_mode_count) ... ok
 test_ax25_mode (test_sync_metadata.ExtendedProfileTests.test_ax25_mode) ... ok
+test_cats_mode (test_sync_metadata.ExtendedProfileTests.test_cats_mode) ... ok
 test_dmr_mode (test_sync_metadata.ExtendedProfileTests.test_dmr_mode) ... ok
 test_callsign_nibble (test_sync_metadata.MetadataFieldTests.test_callsign_nibble) ... ok
 test_golay_round_trip (test_sync_metadata.MetadataFieldTests.test_golay_round_trip) ... ok
@@ -78,7 +79,7 @@ test_linht_pmt (test_tx_control.TestTxControl.test_linht_pmt) ... ok
 test_plain_on_off (test_tx_control.TestTxControl.test_plain_on_off) ... ok
 
 ----------------------------------------------------------------------
-Ran 65 tests in 156.228s
+Ran 66 tests in 150.709s
 
 OK (skipped=1)
 ```
@@ -91,13 +92,13 @@ Test project /mnt/2e9a1e9f-2097-408c-ab9a-a01b32f11d28/github-projects/gr-ident/
     Start 1: grident_registry
 1/3 Test #1: grident_registry .................   Passed    0.02 sec
     Start 2: grident_receive_flowgraph
-2/3 Test #2: grident_receive_flowgraph ........   Passed    0.24 sec
+2/3 Test #2: grident_receive_flowgraph ........   Passed    0.23 sec
     Start 3: grident_ptt_zmq_smoke
 3/3 Test #3: grident_ptt_zmq_smoke ............   Passed   12.12 sec
 
 100% tests passed, 0 tests failed out of 3
 
-Total Test time (real) =  12.39 sec
+Total Test time (real) =  12.37 sec
 ```
 
 ## Per-Mode IQ Roundtrip

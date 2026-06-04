@@ -72,6 +72,7 @@ constexpr mode_entry k_modes[] = {
     { 152, { "VARA HF", true, "data" } },
     { 153, { "VARA FM", true, "data" } },
     { 154, { "Winlink", true, "data" } },
+    { 155, { "CATS", true, "data" } },
     { 158, { "PSK31", true, "data" } },
     { 159, { "RTTY", true, "data" } },
     { 180, { "OFDM", true, "digital" } },

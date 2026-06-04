@@ -64,6 +64,14 @@ Canonical source: [`python/grident/sync_sequences.py`](../python/grident/sync_se
 | Hex | `0x6E4B` |
 | Binary (MSB first) | `0110111001001011` |
 
+### `sync_cats` — CATS raw FSK (`cats_9600`)
+
+| Property | Value |
+|---|---|
+| Length | 16 bits |
+| Hex | `0x96D3` |
+| Binary (MSB first) | `1001011011010011` |
+
 ## 24-bit sequences
 
 ### `sync_c4fm` — C4FM / Fusion (`c4fm_4800`)
