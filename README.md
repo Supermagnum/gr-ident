@@ -12,6 +12,8 @@
 - [Overview](#overview)
 - [Installation](#installation)
 - [Documentation](#documentation)
+  - [Code chart (function map)](docs/codechart.md)
+  - [GR4 port diagrams](docs/port-diagrams.md)
 - [Design Goals](#design-goals)
 - [Preamble Structure](#preamble-structure)
 - [Modulation Profiles](#modulation-profiles)
@@ -187,7 +189,7 @@ Generated test documentation, IQ capture details, waterfall plots, and regressio
 - [docs/README.md](docs/README.md) — documentation index and plot parameters
 - [docs/test-results.md](docs/test-results.md) — unit test log and IQ roundtrip matrix
 - [docs/modulation-captures.md](docs/modulation-captures.md) — per-mode air interfaces, capture durations, and spectrograms
-- [docs/codechart.md](docs/codechart.md) — code and test function map (debug reference)
+- [docs/codechart.md](docs/codechart.md) — code and function chart (Mermaid flows, module index)
 - [docs/port-diagrams.md](docs/port-diagrams.md) — GNU Radio 4 TX/RX port diagrams (Mermaid)
 - [blocklib/grident/blocks/README.md](blocklib/grident/blocks/README.md) — GNU Radio 4.x block build
 - [TESTING.md](TESTING.md) — tester onboarding and smoke tests
