@@ -195,7 +195,9 @@ flowchart LR
 |---|---|---|
 | Parse PTT / LinHT PMT | `parse_tx_control_message`, `parse_linht_pmt` | `parse_tx_control_message`, `parse_linht_pmt_message` |
 | Format / send | `send_tx_control`, `format_linht_pmt` | — |
-| Files | `tx_control.py` | `tx_control.cc` |
+| Preamble JSON / topics | `format_preamble_result_json`, `preamble_result_topic` | `PreambleResultZmqPub` |
+| Repeater ZMQ constants | `zmq_protocol.py` | `tx_control.h` |
+| Files | `tx_control.py`, `zmq_protocol.py` | `tx_control.cc` |
 
 GR4: `ZmqTxControlSub` calls C++ parser; drives `PreambleOnPtt`.
 

@@ -193,7 +193,7 @@ Generated test documentation, IQ capture details, waterfall plots, and regressio
 - [docs/port-diagrams.md](docs/port-diagrams.md) — GNU Radio 4 TX/RX port diagrams (Mermaid)
 - [blocklib/grident/blocks/README.md](blocklib/grident/blocks/README.md) — GNU Radio 4.x block build
 - [TESTING.md](TESTING.md) — tester onboarding and smoke tests
-- [docs/zeromq-protocol.md](docs/zeromq-protocol.md) — LinHT and gr-ident ZeroMQ wire formats and mode examples
+- [docs/zeromq-protocol.md](docs/zeromq-protocol.md) — ZeroMQ wire formats; [mode control via ZMQ](docs/zeromq-protocol.md#mode-control-via-zeromq) (RX publish `mode_id`, TX PTT gating); [SDR-repeater](https://github.com/Supermagnum/SDR-repeater/blob/main/zeromq-messages.md)
 - [docs/gateway-integration.md](docs/gateway-integration.md) — VoIP gateway adapters, ZeroMQ, gr-linux-crypto
 - [docs/rmv-integration.md](docs/rmv-integration.md) — two-layer IQ validation via radio-modulation-validator
 - [docs/npu-deployment.md](docs/npu-deployment.md) — INT8 quantisation and SpacemiT NPU deployment
@@ -979,10 +979,14 @@ cmake --build build-gr4
 
 ZeroMQ blocks support distributed flowgraphs (IQ between hosts), publishing decoded
 preamble fields as JSON on receive, and **TX/PTT control** on transmit (`ZmqTxControlSub`
-into `PreambleOnPtt`). The default TX control profile matches the
+into `PreambleOnPtt`). **Mode control:** on receive, subscribe to `:5560` and route on
+`mode_id` from JSON; on transmit, set `PreambleOnPtt` `mode_id` in the flowgraph and key
+the burst via `:5561` (`grident.tx`) or LinHT `SOT`/`EOT` — ZMQ does not carry arbitrary
+TX mode commands. See [Mode control via ZeroMQ](docs/zeromq-protocol.md#mode-control-via-zeromq)
+and [`apps/flowgraphs/zmq-distributed-demo.md`](apps/flowgraphs/zmq-distributed-demo.md).
+The default TX control profile matches the
 [LinHT Handheld Transceiver](https://github.com/M17-Project/LinHT-utils) PMT `SOT`/`EOT`
 messages on `ipc:///tmp/ptt_msg`; use `profile=grident` for standalone multipart JSON/text.
-See [`docs/zeromq-protocol.md`](docs/zeromq-protocol.md) for wire formats and source references.
 
 IQ-level detection without GNU Radio remains in `python/grident/iq_decode.py` and
 `blocklib/grident/lib/preamble_detect.cc`.

@@ -7,7 +7,7 @@ Generated test documentation for gr-ident modulation profiles and IQ captures.
 ## Contents
 
 - [Modulation captures and waterfall plots](modulation-captures.md)
-- [ZeroMQ protocol (LinHT and gr-ident)](zeromq-protocol.md)
+- [ZeroMQ protocol (LinHT, gr-ident, SDR-repeater)](zeromq-protocol.md) — includes [mode control via ZMQ](zeromq-protocol.md#mode-control-via-zeromq)
 - [Gateway integration (VoIP, ZMQ, gr-linux-crypto)](gateway-integration.md)
 - [radio-modulation-validator integration](rmv-integration.md)
 - [Validation report example](validation-report-example.md)

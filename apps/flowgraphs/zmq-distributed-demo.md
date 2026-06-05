@@ -6,6 +6,10 @@ preamble-result publishing. Build with libzmq installed (`libzmq3-dev` on Debian
 Normative wire-format reference (LinHT vs gr-ident, upstream source paths):
 [`docs/zeromq-protocol.md`](../../docs/zeromq-protocol.md).
 
+**Mode control:** receive path publishes `mode_id` on PUB `:5560`; transmit path gates
+`PreambleOnPtt` via PTT on `:5561` (mode ID is a flowgraph parameter, not a ZMQ payload).
+See [Mode control via ZeroMQ](../../docs/zeromq-protocol.md#mode-control-via-zeromq).
+
 ## Build
 
 ```bash

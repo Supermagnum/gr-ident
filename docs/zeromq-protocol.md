@@ -7,20 +7,231 @@ observed in upstream source and which gr-ident functions implement or consume it
 For runnable examples see [`apps/flowgraphs/zmq-distributed-demo.md`](../apps/flowgraphs/zmq-distributed-demo.md)
 and [`TESTING.md`](../TESTING.md).
 
+Python helpers for repeater-compatible JSON and topics:
+[`python/grident/zmq_protocol.py`](../python/grident/zmq_protocol.py).
+Tests: [`python/tests/test_sdr_repeater_zmq.py`](../python/tests/test_sdr_repeater_zmq.py).
+
 ---
 
 ## Summary
 
-Two independent ZeroMQ conventions coexist in this repository:
+Three independent ZeroMQ conventions may coexist on a repeater host. They use
+**different sockets, patterns, and payloads** — do not mix them on the same endpoint.
 
 | Family | Primary use | Socket pattern | Default transport |
 |---|---|---|---|
+| **SDR-repeater native** | IQ, hardware PTT, site telemetry (`ht-module-daemon`) | PUB/SUB, REQ/REP | `ipc:///run/ht-module/...` |
+| **gr-ident** | Preamble decode results, GR PTT gating, optional distributed IQ | PUSH/PULL (IQ), PUB/SUB (control + results) | `tcp://127.0.0.1:...` |
 | **LinHT** | LinHT GUI, baseband proxy, GNU Radio M17 flowgraphs | PUB/SUB | IPC under `/tmp/` |
-| **gr-ident** | Standalone distributed flowgraphs, CI smoke tests | PUSH/PULL (IQ), PUB/SUB (control + results) | TCP localhost |
 
 gr-ident **PTT control** is compatible with LinHT when `ZmqTxControlSub` uses `profile=linht`.
-gr-ident **IQ streaming** (`ZmqPushSink` / `ZmqPullSource`) is **not** wire-compatible with
-LinHT baseband sockets without a format adapter.
+gr-ident **preamble JSON** and **grident.tx** control match the
+[SDR-repeater ZeroMQ reference](https://github.com/Supermagnum/SDR-repeater/blob/main/zeromq-messages.md)
+(Section 6). gr-ident **IQ streaming** (`ZmqPushSink` / `ZmqPullSource`) is **not**
+wire-compatible with repeater native IQ frames or LinHT baseband without a format adapter.
+
+---
+
+## Mode control via ZeroMQ
+
+gr-ident does **not** expose a separate “set mode” command on the wire. Mode selection
+works in two directions:
+
+| Direction | Who decides `mode_id` | ZeroMQ role |
+|---|---|---|
+| **Receive** | Over-the-air preamble (Golay decode) | **Publish** JSON on port **5560** so routers/gateways switch demod |
+| **Transmit** | Flowgraph parameter on `PreambleOnPtt` | **Subscribe** PTT on **5561** (or LinHT `ptt_msg`) to **gate** insertion of that mode’s burst |
+
+External software **controls when** the transmitter keys and **reads which mode** was
+detected; it does not push arbitrary mode IDs into the RF chain except by configuring
+the GNU Radio block `mode_id` on transmit.
+
+### Receive path — route demodulators from decoded mode
+
+After IQ enters a detect flowgraph (`Cpfsk4PreambleDetect` / Golay decode), successful
+decodes are published by `PreambleResultZmqPub`:
+
+| Item | Value |
+|---|---|
+| Socket | PUB (flowgraph **binds**) |
+| Endpoint | `tcp://127.0.0.1:5560` or `ipc:///run/ht-module/grident` |
+| Multipart | `[topic, json_utf8]` |
+| Topic | `grident`, `grident.A` … `grident.D`, or `grident.<band>` |
+| JSON | `mode_id`, `digital`, `encrypted`, `metadata_present` |
+
+**Mode router / gateway adapter** (your process):
+
+1. `SUB` connect to the preamble endpoint; `SUBSCRIBE` prefix `grident`.
+2. On each message, parse JSON (`parse_preamble_result_json` or equivalent).
+3. Map `mode_id` to a demodulator profile (see [README mode table](../README.md#mode-id-table)).
+4. If `digital` mismatches the chosen bank, hold audio (do not feed noise downstream).
+5. If `encrypted == true`, run [gr-linux-crypto](https://github.com/Supermagnum/gr-linux-crypto) before FEC/demod.
+6. If `metadata_present == true`, wait for secondary metadata on the GR chain before final routing.
+
+```mermaid
+flowchart LR
+  IQ[IQ in] --> DET[gr-ident detect]
+  DET --> PUB[PreambleResultZmqPub :5560]
+  PUB --> SUB[Mode router SUB]
+  SUB --> DEM[Profile demod / gateway]
+```
+
+Python (library helpers):
+
+```python
+from grident.zmq_protocol import subscribe_preamble_results
+
+with subscribe_preamble_results("tcp://127.0.0.1:5560") as sub:
+    for topic, result in sub:
+        # result.mode_id, result.digital, result.encrypted, ...
+        route_demod(result.mode_id, result.digital, result.encrypted)
+```
+
+C++ block: `gr::grident::zeromq::PreambleResultZmqPub` — see
+[`PreambleResultZmqPub.hpp`](../blocklib/grident/include/gnuradio-4.0/grident/zeromq/PreambleResultZmqPub.hpp).
+
+### Transmit path — gate preamble burst with PTT
+
+The **mode ID on transmit** is set in the flowgraph (`PreambleOnPtt` property `mode_id`,
+e.g. `110` for EchoLink). ZeroMQ only carries **key-down / key-up**:
+
+| Item | Value |
+|---|---|
+| Socket | SUB (flowgraph **binds** on grident profile) |
+| Endpoint | `tcp://127.0.0.1:5561` |
+| Multipart | `[grident.tx, body]` |
+| Key down | `ON`, `SOT`, `PTT_ON`, `{"ptt":true}`, … |
+| Key up | `OFF`, `EOT`, `PTT_OFF`, `{"ptt":false}`, … |
+
+On each 0→1 transition on `tx_in`, `PreambleOnPtt` emits one Golay primary codeword for the
+configured `mode_id` (and optional metadata codeword when enabled).
+
+```mermaid
+flowchart LR
+  EXT[PTT daemon / GUI] -->|grident.tx :5561| SUB[ZmqTxControlSub]
+  SUB --> PTT[PreambleOnPtt mode_id=N]
+  PTT --> RF[Sync + modulator]
+```
+
+Change linking mode on TX by editing the flowgraph or block parameter, not by a ZMQ mode
+command. To automate TX mode from software, restart or retune the GR flowgraph (or add an
+application-specific side channel); the published ZMQ control bus is PTT-only.
+
+Python:
+
+```python
+from grident.tx_control import TxControlState, send_tx_control
+
+send_tx_control("tcp://127.0.0.1:5561", TxControlState.ON, profile="grident")
+# voice / payload ...
+send_tx_control("tcp://127.0.0.1:5561", TxControlState.OFF, profile="grident")
+```
+
+LinHT uses the same gating with `profile=linht` on `ipc:///tmp/ptt_msg` (PMT `SOT`/`EOT`).
+
+### Identification runtime status (optional)
+
+Classifier backend and identification tier (`FULL`, `DEGRADED`, `MINIMAL`, `FALLBACK`) are
+reported by `RuntimeStatus.to_zmq_status()` in
+[`python/grident/rmv_integration/runtime.py`](../python/grident/rmv_integration/runtime.py).
+Publish on a **separate** endpoint from preamble results and from SDR-repeater `status` PUB.
+
+### Default endpoints (quick reference)
+
+| Port / path | Pattern | Purpose |
+|---|---|---|
+| `tcp://127.0.0.1:5560` | PUB/SUB | **RX mode** — decoded `mode_id` JSON |
+| `tcp://127.0.0.1:5561` | PUB/SUB | **TX PTT** — gate preamble insert (`grident.tx`) |
+| `tcp://127.0.0.1:5555` | PUSH/PULL | Optional distributed IQ (`complex<float>`) |
+| `ipc:///tmp/ptt_msg` | PUB/SUB | LinHT PTT (not mode JSON) |
+
+Constants and publish/subscribe helpers:
+[`python/grident/zmq_protocol.py`](../python/grident/zmq_protocol.py).
+
+Runnable wiring:
+[`apps/flowgraphs/zmq-distributed-demo.md`](../apps/flowgraphs/zmq-distributed-demo.md).
+Gateway adapters:
+[`docs/gateway-integration.md`](gateway-integration.md).
+
+---
+
+## SDR-repeater integration (canonical upstream)
+
+The multiband repeater documents gr-ident in
+[zeromq-messages.md](https://github.com/Supermagnum/SDR-repeater/blob/main/zeromq-messages.md)
+(revision 1.2, June 2026). This section records what gr-ident implements and what stays
+in the Rust `ht-module-daemon`.
+
+### What gr-ident implements (compatible)
+
+| Channel | gr-ident block / API | Repeater default | Wire format |
+|---|---|---|---|
+| Preamble decode | `PreambleResultZmqPub` | `tcp://127.0.0.1:5560` or `ipc:///run/ht-module/grident` | Multipart `[topic, JSON]` |
+| GR PTT gating | `ZmqTxControlSub` + `PreambleOnPtt` | `tcp://127.0.0.1:5561` | Multipart `[grident.tx, body]` |
+| Distributed IQ (lab) | `ZmqPushSink` / `ZmqPullSource` | `tcp://127.0.0.1:5555` | Raw `complex<float>` bytes |
+
+### What stays in repeater native (not gr-ident)
+
+| Channel | Endpoint | Format |
+|---|---|---|
+| RX IQ | `ipc:///run/ht-module/iq_A` … `iq_D` | int16 framed (16-byte header + I/Q), 500 kSa/s |
+| TX IQ | `ipc:///run/ht-module/tx_*` | Same |
+| Hardware PTT | `ipc:///run/ht-module/ctrl` REQ/REP | ASCII `PTT B on` / `PTT B off` |
+| Telemetry | `ipc:///run/ht-module/status` PUB | JSON RSSI, SWR, `ptt`, `fault`, … |
+
+Hardware PTT on `ctrl` and gr-ident `grident.tx` on port 5561 are **complementary**:
+use `ctrl` for the RF chain; use `grident.tx` only to gate `PreambleOnPtt` inside GNU Radio.
+
+### Preamble JSON (Section 6.1)
+
+**Topic (frame 0):** `grident`, or per-module `grident.A` … `grident.D`, or band suffix
+`grident.70cm` when unambiguous. Subscribers may use ZMQ prefix filter `grident` to
+receive all variants.
+
+**Body (frame 1):**
+
+```json
+{"mode_id":20,"digital":false,"encrypted":false,"metadata_present":false}
+```
+
+| Field | gr-ident source |
+|---|---|
+| `mode_id` | Bits 0–8 of primary preamble field |
+| `digital` | Bit 11 |
+| `encrypted` | Bit 10 |
+| `metadata_present` | Bit 9 |
+
+Python: `format_preamble_result_json()`, `parse_preamble_result_json()`, `publish_preamble_result()`
+in [`zmq_protocol.py`](../python/grident/zmq_protocol.py).
+
+C++: `PreambleResultZmqPub::processOne()` in
+[`PreambleResultZmqPub.hpp`](../blocklib/grident/include/gnuradio-4.0/grident/zeromq/PreambleResultZmqPub.hpp).
+
+### TX / PTT control (Section 6.2)
+
+| Parameter | Value |
+|---|---|
+| Topic | `grident.tx` |
+| Endpoint | `tcp://127.0.0.1:5561` |
+| Profile | `ZmqTxControlSub` with `profile=grident` |
+
+**TX on:** `PTT_ON`, `TX`, `KEYDOWN`, `1`, `ON`, `SOT`, `{"ptt": true}` (and `{"tx":1}`, `{"key":true}`).
+
+**TX off:** `PTT_OFF`, `RX`, `KEYUP`, `0`, `OFF`, `EOT`, `{"ptt": false}` (and `{"tx":0}`, `{"key":false}`).
+
+### IQ adapter note (Section 3 + 6.3)
+
+Repeater IQ messages use a **16-byte header** (`timestamp_ns`, `module_id`, `sample_count`)
+plus int16 interleaved I/Q. gr-ident PUSH/PULL uses **headerless** `complex<float>`.
+Bridge with `gr-ht13g` or a custom adapter before `Cpfsk4PreambleDetect`.
+
+### Identification runtime status (not repeater `status` PUB)
+
+`RuntimeStatus.to_zmq_status()` in [`runtime.py`](../python/grident/rmv_integration/runtime.py)
+reports classifier backend and identification mode for gr-ident integration. It is
+**not** the same schema as repeater telemetry on `ipc:///run/ht-module/status`
+(`module`, `band`, `rssi_dbm`, `swr`, …). Publish identification status on a separate
+endpoint or embed in application logic.
 
 ---
 
@@ -560,26 +771,31 @@ send_tx_control("tcp://127.0.0.1:5561", TxControlState.OFF, profile="grident")
 
 ## Compatibility matrix
 
-| Channel | LinHT format | gr-ident format | Compatible today |
-|---|---|---|---|
-| PTT / TX control | Single-part PMT `SOT`/`EOT`, no topic | Multipart `[grident.tx, body]` or LinHT PMT via auto-parser | **Yes** (`profile=linht`) |
-| RX / TX baseband IQ | PUB/SUB, `int32` interleaved, 8192 B/msg | PUSH/PULL, `complex<float>` binary | **No** (adapter required) |
-| Decoded metadata to GUI | PMT pairs on `fg_aux_data_out` | JSON PUB on TCP 5560 | **No** (different schema and transport); use [gateway adapter](gateway-integration.md) |
-| SMS / encoder triggers | Compound PMT on `fg_aux_data_in` | Not implemented | **No** |
+| Channel | Repeater native | LinHT | gr-ident | Compatible today |
+|---|---|---|---|---|
+| RX IQ | int16 framed `iq_*` | int32 `bsb_rx` | PUSH/PULL `complex<float>` | **No** (adapter) |
+| TX IQ | int16 framed `tx_*` | int32 `bsb_tx` | PUSH/PULL | **No** (adapter) |
+| Hardware PTT | `ctrl` ASCII | — | — | N/A (use daemon) |
+| GR preamble gating | — | PMT `ptt_msg` | `grident.tx` or LinHT PMT | **Yes** |
+| Mode ID to router | — | — | JSON PUB `:5560` topic `grident*` | **Yes** |
+| Site telemetry | JSON `status` | — | — (see `RuntimeStatus` note) | **No** (different bus) |
+| SMS / encoder | — | PMT `fg_aux_data_in` | Not implemented | **No** |
 
 ---
 
 ## Quick reference: default endpoints
 
-| Purpose | LinHT | gr-ident |
-|---|---|---|
-| PTT | `ipc:///tmp/ptt_msg` | `tcp://127.0.0.1:5561` |
-| Flowgraph aux in | `ipc:///tmp/fg_aux_data_in` | — |
-| Flowgraph aux out | `ipc:///tmp/fg_aux_data_out` | — |
-| Baseband RX | `ipc:///tmp/bsb_rx` | — |
-| Baseband TX | `ipc:///tmp/bsb_tx` | — |
-| Distributed IQ | — | `tcp://127.0.0.1:5555` (PUSH/PULL) |
-| Preamble JSON | — | `tcp://127.0.0.1:5560` (PUB, topic `grident`) |
+| Purpose | Repeater native | LinHT | gr-ident |
+|---|---|---|---|
+| RX IQ | `ipc:///run/ht-module/iq_*` | `ipc:///tmp/bsb_rx` | — |
+| TX IQ | `ipc:///run/ht-module/tx_*` | `ipc:///tmp/bsb_tx` | — |
+| Hardware PTT | `ipc:///run/ht-module/ctrl` | — | — |
+| Telemetry | `ipc:///run/ht-module/status` | — | — |
+| GR PTT (LinHT) | — | `ipc:///tmp/ptt_msg` | `profile=linht` |
+| GR PTT (gr-ident) | — | — | `tcp://127.0.0.1:5561` topic `grident.tx` |
+| Flowgraph aux | — | `fg_aux_data_in/out` | — |
+| Distributed IQ | — | — | `tcp://127.0.0.1:5555` (PUSH/PULL) |
+| Preamble JSON | `ipc:///run/ht-module/grident` (suggested) | — | `tcp://127.0.0.1:5560` topic `grident` |
 
 ---
 
@@ -592,3 +808,6 @@ send_tx_control("tcp://127.0.0.1:5561", TxControlState.OFF, profile="grident")
 | [`docs/gateway-integration.md`](gateway-integration.md) | VoIP gateway adapters, ZMQ, gr-linux-crypto |
 | [`TESTING.md`](../TESTING.md) | PTT/ZMQ smoke test prerequisites |
 | [`blocklib/grident/blocks/README.md`](../blocklib/grident/blocks/README.md) | Block inventory |
+| [`python/grident/zmq_protocol.py`](../python/grident/zmq_protocol.py) | Repeater-aligned JSON/topic helpers |
+| [`python/tests/test_sdr_repeater_zmq.py`](../python/tests/test_sdr_repeater_zmq.py) | SDR-repeater wire-format regression |
+| [SDR-repeater zeromq-messages.md](https://github.com/Supermagnum/SDR-repeater/blob/main/zeromq-messages.md) | Canonical repeater ZMQ reference |
