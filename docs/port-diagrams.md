@@ -6,7 +6,11 @@ there is no GNU Radio Companion 3.x `.grc` palette in this repository yet.
 
 Reference YAML: [`apps/flowgraphs/`](../apps/flowgraphs/). Block inventory:
 [`blocklib/grident/blocks/README.md`](../blocklib/grident/blocks/README.md).
-ZeroMQ wire formats: [`zeromq-protocol.md`](zeromq-protocol.md).
+ZeroMQ wire formats and [mode control via ZMQ](zeromq-protocol.md#mode-control-via-zeromq):
+[`zeromq-protocol.md`](zeromq-protocol.md). Python helpers:
+[`python/grident/zmq_protocol.py`](../python/grident/zmq_protocol.py).
+SDR-repeater integration:
+[zeromq-messages.md](https://github.com/Supermagnum/SDR-repeater/blob/main/zeromq-messages.md).
 
 ---
 
@@ -82,21 +86,37 @@ flowchart LR
 Typical two-process layout from
 [`zmq-distributed-demo.md`](../apps/flowgraphs/zmq-distributed-demo.md).
 
+`Cpfsk4PreambleDetect` exposes `packed_preamble` and `detected_mode_id` as **block
+parameters** (updated when `detect_strobe` pulses), not as stream ports.
+`PreambleResultZmqPub` requires a **streamed** `u16` packed field on `in`. Use one of
+the patterns below.
+
+**Pattern A — codeword stream (GR blocks only):**
+
 ```mermaid
 flowchart TB
   subgraph procA["Process A — IQ source"]
     SDR["SDR / file source"] --> Push["ZmqPushSink IQ\nbind tcp://*:5555"]
   end
 
-  subgraph procB["Process B — gr-ident detect"]
-    Pull["ZmqPullSource IQ\nconnect :5555"] --> Det["Cpfsk4PreambleDetect"]
-    Det --> Strobe["detect_strobe"]
-    Det -.->|"packed_preamble"| Dec["PreambleDecode\n(optional codeword path)"]
+  subgraph procB["Process B — packed u16 to ZMQ"]
+    Pull["ZmqPullSource IQ\nconnect :5555"] --> Chain["Detect / correlator\n(emit u32 codeword)"]
+    Chain --> Dec["PreambleDecode\nin: u32"]
     Dec --> Pub["PreambleResultZmqPub\nin: u16"]
     Pub --> ZMQpub[("ZMQ PUB :5560\ntopic grident")]
   end
 
   Push ==>|"ZMQ PUSH/PULL"| Pull
+```
+
+**Pattern B — IQ detect + application publish (in-repo detect block):**
+
+```mermaid
+flowchart TB
+  Pull["ZmqPullSource IQ"] --> Det["Cpfsk4PreambleDetect"]
+  Det -->|"detect_strobe: u8"| Strobe["(optional sink)"]
+  Det -.->|"parameters:\npacked_preamble,\ndetected_mode_id"| App["Gateway adapter /\npublish_preamble_result()"]
+  App --> ZMQpub[("ZMQ PUB :5560")]
 ```
 
 | Block | Port | Direction | Type |
@@ -109,8 +129,12 @@ flowchart TB
 | `PreambleResultZmqPub` | `in` | in | u16 |
 | `PreambleResultZmqPub` | `out` | out | u16 (passthrough) |
 
-**Subscriber (Python):** `SUB tcp://127.0.0.1:5560`, filter `grident` — JSON
-`mode_id`, `digital`, `encrypted`, `metadata_present`.
+**Subscriber:** `SUB` on `tcp://127.0.0.1:5560` (or `ipc:///run/ht-module/grident` on a
+repeater), filter prefix `grident`. JSON body:
+`mode_id`, `digital`, `encrypted`, `metadata_present`. Route demod from `mode_id` (see
+[mode control via ZMQ](zeromq-protocol.md#mode-control-via-zeromq)).
+Helpers: `subscribe_preamble_results()` in
+[`zmq_protocol.py`](../python/grident/zmq_protocol.py).
 
 ---
 
@@ -168,6 +192,10 @@ flowchart LR
 
 On each `tx_in` **0-to-1** edge: one primary Golay codeword; if `metadata_present`,
 one metadata codeword on the next sample.
+
+**Mode on transmit:** set `mode_id` (and flags) on `PreambleOnPtt` in the flowgraph.
+ZeroMQ carries **PTT only** (`grident.tx` on `:5561` or LinHT `SOT`/`EOT`) — not a
+remote “set mode” command.
 
 ---
 
@@ -231,28 +259,62 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  subgraph tx["Transmit control"]
-    ClientA["PTT publisher"] -->|":5561 or ipc PTT"| Sub["ZmqTxControlSub"]
-    Sub --> PTT["PreambleOnPtt"]
+  subgraph tx["Transmit — PTT only"]
+    ClientA["PTT publisher"] -->|":5561 grident.tx"| Sub["ZmqTxControlSub"]
+    LinHT["LinHT GUI"] -->|"/tmp/ptt_msg"| Sub
+    Sub --> PTT["PreambleOnPtt\nmode_id = flowgraph param"]
   end
 
-  subgraph rx["Receive results"]
-    Det["Detect chain"] --> Pub["PreambleResultZmqPub"]
-    Pub -->|":5560"| SubJSON["Python / gateway adapter"]
+  subgraph rx["Receive — mode_id JSON"]
+    Pub["PreambleResultZmqPub\nor publish_preamble_result()"] -->|":5560"| Router["Mode router /\ngateway adapter"]
   end
 
   subgraph iq["Distributed IQ"]
-    Push["ZmqPushSink :5555"] ==>|PUSH/PULL| Pull["ZmqPullSource"]
+    Push["ZmqPushSink :5555"] ==>|"complex float"| Pull["ZmqPullSource"]
     Pull --> Det2["Cpfsk4PreambleDetect"]
   end
 ```
 
-| Endpoint | Default | Role |
+| Endpoint | Pattern | Role |
 |---|---|---|
-| `tcp://*:5555` | IQ PUSH/PULL | Distributed sample streaming |
-| `tcp://127.0.0.1:5560` | PUB | Decoded preamble JSON |
-| `tcp://127.0.0.1:5561` | SUB | gr-ident PTT (`profile=grident`) |
-| `ipc:///tmp/ptt_msg` | SUB | LinHT PMT SOT/EOT (`profile=linht`) |
+| `tcp://127.0.0.1:5555` | PUSH/PULL | Distributed IQ (`std::complex<float>`) |
+| `tcp://127.0.0.1:5560` | PUB/SUB | **RX mode control** — JSON `mode_id` (+ flags) |
+| `ipc:///run/ht-module/grident` | PUB/SUB | Same JSON on SDR-repeater (optional IPC) |
+| `tcp://127.0.0.1:5561` | PUB/SUB | **TX PTT** — topic `grident.tx` (`profile=grident`) |
+| `ipc:///tmp/ptt_msg` | PUB/SUB | LinHT PMT SOT/EOT (`profile=linht`) |
+
+**Preamble topics (frame 0):** `grident`, `grident.A` … `grident.D`, or `grident.<band>`
+(e.g. `grident.70cm`). Subscribers use ZMQ prefix filter `grident` to receive all.
+
+Constants: C++ `tx_control.h`; Python `zmq_protocol.py`.
+
+---
+
+### SDR-repeater on-site (logical)
+
+Repeater **native** IQ (`ipc:///run/ht-module/iq_*`, int16 framed, 500 kSa/s) is not
+wire-compatible with gr-ident PUSH/PULL without a format adapter. gr-ident **control**
+sockets match [SDR-repeater Section 6](https://github.com/Supermagnum/SDR-repeater/blob/main/zeromq-messages.md).
+
+```mermaid
+flowchart TB
+  subgraph native["ht-module-daemon (native)"]
+    IQrx["iq_A … iq_D PUB\nint16 framed"] --> Adapter["IQ format adapter\nint16 to complex float"]
+    Ctrl["ctrl REQ/REP\nhardware PTT"]
+    Stat["status PUB\ntelemetry JSON"]
+  end
+
+  Adapter --> GR["GNU Radio + gr-ident detect"]
+  GR --> Pub["PreambleResultZmqPub\n:5560 or ipc grident"]
+  Pub --> Router["Mode router"]
+  Router --> Demod["Profile demod / gateway"]
+
+  Policy["PTT policy"] -->|":5561 grident.tx"| GRtx["TX flowgraph\nPreambleOnPtt"]
+  Ctrl --> RF["RF chain key"]
+```
+
+Hardware PTT on `ctrl` and gr-ident `grident.tx` are complementary: `ctrl` keys the PA;
+`:5561` gates preamble insertion inside GNU Radio only.
 
 ---
 
@@ -297,6 +359,8 @@ flowchart LR
 | CPFSK 4-FSK 4800 sym/s | 20, 104, 110 | `Cpfsk4PreambleDetect` |
 | PSK31 / RTTY / CATS 9600 | 158, 159, 155 | Python `iq_decode.py` only (no GR4 IQ block yet) |
 
-See [`TESTING.md`](../TESTING.md) for runnable smoke tests and
+See [`TESTING.md`](../TESTING.md) for runnable smoke tests,
+[`apps/flowgraphs/zmq-distributed-demo.md`](../apps/flowgraphs/zmq-distributed-demo.md)
+for ZMQ wiring, and
 [`blocklib/grident/blocks/README.md`](../blocklib/grident/blocks/README.md) for build
 instructions.

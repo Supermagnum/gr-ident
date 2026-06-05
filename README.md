@@ -190,7 +190,7 @@ Generated test documentation, IQ capture details, waterfall plots, and regressio
 - [docs/test-results.md](docs/test-results.md) — unit test log and IQ roundtrip matrix
 - [docs/modulation-captures.md](docs/modulation-captures.md) — per-mode air interfaces, capture durations, and spectrograms
 - [docs/codechart.md](docs/codechart.md) — code and function chart (Mermaid flows, module index)
-- [docs/port-diagrams.md](docs/port-diagrams.md) — GNU Radio 4 TX/RX port diagrams (Mermaid)
+- [docs/port-diagrams.md](docs/port-diagrams.md) — GNU Radio 4 TX/RX port diagrams (Mermaid); ZMQ mode control and SDR-repeater layout
 - [blocklib/grident/blocks/README.md](blocklib/grident/blocks/README.md) — GNU Radio 4.x block build
 - [TESTING.md](TESTING.md) — tester onboarding and smoke tests
 - [docs/zeromq-protocol.md](docs/zeromq-protocol.md) — ZeroMQ wire formats; [mode control via ZMQ](docs/zeromq-protocol.md#mode-control-via-zeromq) (RX publish `mode_id`, TX PTT gating); [SDR-repeater](https://github.com/Supermagnum/SDR-repeater/blob/main/zeromq-messages.md)
